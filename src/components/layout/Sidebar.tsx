@@ -60,7 +60,7 @@ export default function Sidebar({ sidebarOpen, onCloseSidebar }: SidebarProps) {
         className={`
           fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-white/10 bg-black text-white
           transition-transform duration-200 ease-in-out
-          md:static md:translate-x-0
+          md:sticky md:top-0 md:h-dvh md:translate-x-0
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
         `}
       >

@@ -33,25 +33,46 @@ export default function OutfitFeed({
   revealOutfitId,
   onRevealComplete,
 }: OutfitFeedProps) {
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [now, setNow] = useState(() => Date.now());
 
+  // Drive snap + chrome-collapse from the document, not an inner div.
+  // Mobile browsers only shrink their URL bar / toolbar when the
+  // window is the scrolled element, so OutfitFeed temporarily promotes
+  // the document to a snap container while it's mounted.
   useEffect(() => {
-    if (!selectedOutfitId || !scrollRef.current) return;
+    const html = document.documentElement;
+    html.classList.add("snap-document");
+
+    // Nudge mobile Safari into "scrolled" state on first paint so it
+    // engages the small URL bar without requiring a user swipe.
+    if (window.scrollY === 0) {
+      window.scrollTo(0, 1);
+    }
+
+    return () => {
+      html.classList.remove("snap-document");
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!selectedOutfitId || !containerRef.current) return;
     const index = outfits.findIndex((o) => o.id === selectedOutfitId);
     if (index < 0) return;
-    const container = scrollRef.current;
-    const child = container.children[index] as HTMLElement | undefined;
+    const child = containerRef.current.children[index] as
+      | HTMLElement
+      | undefined;
     child?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [selectedOutfitId, outfits]);
 
   useEffect(() => {
-    if (!scrollToOutfitId || !scrollRef.current) return;
+    if (!scrollToOutfitId || !containerRef.current) return;
     const index = outfits.findIndex((o) => o.id === scrollToOutfitId);
     if (index < 0) return;
-    const container = scrollRef.current;
-    const child = container.children[index] as HTMLElement | undefined;
+    const child = containerRef.current.children[index] as
+      | HTMLElement
+      | undefined;
     child?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [scrollToOutfitId, outfits]);
 
@@ -82,8 +103,9 @@ export default function OutfitFeed({
   }, [latestOutfitWaitingForProducts]);
 
   useEffect(() => {
-    if (!showPendingCard || !autoScrollToPending || !scrollRef.current) return;
-    const container = scrollRef.current;
+    if (!showPendingCard || !autoScrollToPending || !containerRef.current)
+      return;
+    const container = containerRef.current;
     const child = container.children[container.children.length - 1] as
       | HTMLElement
       | undefined;
@@ -91,9 +113,8 @@ export default function OutfitFeed({
   }, [autoScrollToPending, showPendingCard, outfits.length]);
 
   function scrollToCard(index: number) {
-    const container = scrollRef.current;
+    const container = containerRef.current;
     if (!container) return;
-
     const child = container.children[index] as HTMLElement | undefined;
     child?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
@@ -104,16 +125,16 @@ export default function OutfitFeed({
   // than `animation-timeline: view()` so it works on every browser AND
   // responds in real time to a finger/mouse drag, even mid-snap.
   function updateSlideZoom() {
-    const container = scrollRef.current;
+    const container = containerRef.current;
     if (!container) return;
-    const height = container.clientHeight;
+    const height = window.innerHeight;
     if (height <= 0) return;
-    const scrollTop = container.scrollTop;
-    const viewportCenter = scrollTop + height / 2;
+    const containerTop = container.getBoundingClientRect().top + window.scrollY;
+    const viewportCenter = window.scrollY + height / 2;
 
     Array.from(container.children).forEach((node, i) => {
       const slide = node as HTMLElement;
-      const slideCenter = i * height + height / 2;
+      const slideCenter = containerTop + i * height + height / 2;
       const offset = Math.abs(viewportCenter - slideCenter) / height;
       const clamped = Math.min(offset, 1);
       const scale = 1 + 0.15 * clamped;
@@ -121,13 +142,28 @@ export default function OutfitFeed({
     });
   }
 
-  function handleScroll() {
-    const container = scrollRef.current;
-    if (!container) return;
-    const nextIndex = Math.round(container.scrollTop / container.clientHeight);
-    setActiveIndex(nextIndex);
-    updateSlideZoom();
-  }
+  useEffect(() => {
+    function onScroll() {
+      const container = containerRef.current;
+      if (!container) return;
+      const height = window.innerHeight;
+      if (height <= 0) return;
+      const containerTop =
+        container.getBoundingClientRect().top + window.scrollY;
+      const relative = Math.max(0, window.scrollY - containerTop);
+      setActiveIndex(Math.round(relative / height));
+      updateSlideZoom();
+    }
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    onScroll();
+
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, []);
 
   useEffect(() => {
     updateSlideZoom();
@@ -138,27 +174,25 @@ export default function OutfitFeed({
   // origin slide, which feels broken for light, intentional swipes.
   // Track touch start/end manually and force the next/prev slide if the
   // gesture clears either a distance or a velocity threshold.
-  const touchStartRef = useRef<{ scrollTop: number; time: number } | null>(null);
+  const touchStartRef = useRef<{ scrollY: number; time: number } | null>(null);
 
   function handleTouchStart() {
-    const container = scrollRef.current;
-    if (!container) return;
     touchStartRef.current = {
-      scrollTop: container.scrollTop,
+      scrollY: window.scrollY,
       time: Date.now(),
     };
   }
 
   function handleTouchEnd() {
-    const container = scrollRef.current;
+    const container = containerRef.current;
     const start = touchStartRef.current;
     touchStartRef.current = null;
     if (!container || !start) return;
 
-    const height = container.clientHeight;
+    const height = window.innerHeight;
     if (height <= 0) return;
 
-    const deltaY = container.scrollTop - start.scrollTop;
+    const deltaY = window.scrollY - start.scrollY;
     const elapsed = Math.max(1, Date.now() - start.time);
     const velocity = Math.abs(deltaY) / elapsed; // px / ms
 
@@ -172,8 +206,10 @@ export default function OutfitFeed({
       return;
     }
 
+    const containerTop = container.getBoundingClientRect().top + window.scrollY;
+    const startRelative = Math.max(0, start.scrollY - containerTop);
     const direction = deltaY > 0 ? 1 : -1;
-    const startIndex = Math.round(start.scrollTop / height);
+    const startIndex = Math.round(startRelative / height);
     const targetIndex = startIndex + direction;
     if (targetIndex < 0) return;
     if (targetIndex >= container.children.length) return;
@@ -184,15 +220,17 @@ export default function OutfitFeed({
 
   return (
     <div
-      ref={scrollRef}
-      onScroll={handleScroll}
+      ref={containerRef}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onTouchCancel={handleTouchEnd}
-      className="h-full w-full snap-y snap-mandatory overflow-y-auto scroll-smooth bg-black scrollbar-hide"
+      className="w-full bg-black"
     >
       {outfits.map((outfit, index) => (
-        <section key={outfit.id} className="h-full w-full snap-start snap-always">
+        <section
+          key={outfit.id}
+          className="h-[100dvh] w-full snap-start snap-always"
+        >
           <OutfitCard
             key={`${outfit.id}-${index === activeIndex ? "active" : "inactive"}`}
             outfit={outfit}
@@ -213,7 +251,7 @@ export default function OutfitFeed({
       ))}
 
       {showPendingCard && (
-        <section className="h-full w-full snap-start snap-always">
+        <section className="h-[100dvh] w-full snap-start snap-always">
           <OutfitCard loading prompt={pendingPrompt} />
         </section>
       )}

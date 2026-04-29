@@ -5,8 +5,25 @@
   --font-mono: var(--font-geist-mono);
 }
 
+html,
+body {
+  background: #000;
+}
+
 body {
   font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+  min-height: 100dvh;
+}
+
+/* OutfitFeed mounts the main viewport-snap experience and toggles this
+ * class on <html> while it's active. We snap on the document so iOS
+ * Safari and Android Chrome treat it as the primary scroller (which is
+ * what causes them to collapse their URL bars and bottom toolbars). */
+html.snap-document,
+html.snap-document body {
+  scroll-snap-type: y mandatory;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: none;
 }
 
 @utility scrollbar-hide {
