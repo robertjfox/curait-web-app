@@ -69,7 +69,7 @@ export default function SavedLooksView() {
             Tap the thumbs-up on an outfit to save it here.
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          <div className="grid grid-cols-2 gap-x-2 gap-y-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
             {savedOutfits.outfits.map((outfit) => {
               const imageUrl = getImageUrl(outfit);
 
@@ -78,14 +78,14 @@ export default function SavedLooksView() {
                   key={outfit.id}
                   type="button"
                   onClick={() => setSelectedOutfitId(outfit.id)}
-                  className="group overflow-hidden rounded-3xl bg-white/10 transition hover:bg-white/15"
+                  className="group overflow-hidden rounded-[2rem] bg-white/10 transition hover:bg-white/15"
                 >
-                  <div className="aspect-[3/4] bg-black/50 p-2">
+                  <div className="aspect-[1/2] bg-black/50">
                     {imageUrl ? (
                       <img
                         src={imageUrl}
                         alt={outfit.name}
-                        className="h-full w-full rounded-2xl object-contain transition duration-300 group-hover:scale-[1.02]"
+                        className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
                       />
                     ) : (
                       <div className="flex h-full items-center justify-center px-4 text-center text-xs text-white/40">

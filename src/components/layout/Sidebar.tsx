@@ -35,6 +35,11 @@ export default function Sidebar({ sidebarOpen, onCloseSidebar }: SidebarProps) {
     onCloseSidebar();
   }
 
+  function handleShoppingList() {
+    setActiveView("shopping");
+    onCloseSidebar();
+  }
+
   function handleDeleteThread(e: React.MouseEvent, id: string) {
     e.stopPropagation();
     if (window.confirm("Delete this thread? This cannot be undone.")) {
@@ -59,7 +64,7 @@ export default function Sidebar({ sidebarOpen, onCloseSidebar }: SidebarProps) {
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
         `}
       >
-        <div className="flex h-14 items-center justify-between border-b border-white/10 px-4">
+        <div className="flex items-center justify-between border-b border-white/10 px-6 pb-4 pt-5">
           <Image
             src="/curait-logo.png"
             alt="CurAIt"
@@ -78,6 +83,15 @@ export default function Sidebar({ sidebarOpen, onCloseSidebar }: SidebarProps) {
 
         <nav className="p-3">
           <button
+            onClick={handleNewChat}
+            className="mb-1 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+          >
+            <span className="flex h-4 w-4 shrink-0 items-center justify-center text-lg leading-none">
+              +
+            </span>
+            New Chat
+          </button>
+          <button
             onClick={handleSavedLooks}
             className={`mb-1 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
               activeView === "saved"
@@ -86,7 +100,7 @@ export default function Sidebar({ sidebarOpen, onCloseSidebar }: SidebarProps) {
             }`}
           >
             <svg
-              className="h-4 w-4"
+              className="h-4 w-4 shrink-0"
               fill={activeView === "saved" ? "currentColor" : "none"}
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -101,11 +115,27 @@ export default function Sidebar({ sidebarOpen, onCloseSidebar }: SidebarProps) {
             Saved Looks
           </button>
           <button
-            onClick={handleNewChat}
-            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+            onClick={handleShoppingList}
+            className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              activeView === "shopping"
+                ? "bg-white text-black"
+                : "text-white/80 hover:bg-white/10 hover:text-white"
+            }`}
           >
-            <span className="text-lg leading-none">+</span>
-            New Chat
+            <svg
+              className="h-4 w-4 shrink-0"
+              fill={activeView === "shopping" ? "currentColor" : "none"}
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"
+              />
+            </svg>
+            Shopping List
           </button>
         </nav>
 

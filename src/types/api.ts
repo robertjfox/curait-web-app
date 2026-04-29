@@ -80,3 +80,22 @@ export interface SearchResult {
   rating?: number;
   reviews?: number;
 }
+
+export interface SavedProduct {
+  id: string;
+  user_id: string;
+  outfit_id?: string | null;
+  outfit_item_id?: string | null;
+  link: string;
+  title?: string | null;
+  price?: string | null;
+  image_url?: string | null;
+  source?: string | null;
+  product_id?: string | null;
+  rating?: number | null;
+  rating_count?: number | null;
+  api_provider?: string | null;
+  snapshot: SearchResult;
+  created_at: string;
+  updated_at: string;
+}

@@ -141,3 +141,15 @@ body {
   stroke-dashoffset: 157;
   animation: next-button-countdown 10s linear forwards;
 }
+
+/*
+ * Scroll-proportional zoom for the outfit feed. OutfitFeed sets the
+ * `--slide-zoom` custom property on each slide section based on its
+ * distance from the viewport center. Centered slides land at scale 1
+ * and adjacent ones grow up to scale 1.15.
+ */
+.slide-image-zoom {
+  transform: scale(var(--slide-zoom, 1));
+  transform-origin: center center;
+  will-change: transform;
+}

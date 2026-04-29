@@ -44,12 +44,6 @@ export default function ThreadView({ onMenuPress }: ThreadViewProps) {
   const [pendingComments, setPendingComments] = useState<PendingComment[]>([]);
   const [scrollToOutfitId, setScrollToOutfitId] = useState<string | null>(null);
   const [revealOutfitId, setRevealOutfitId] = useState<string | null>(null);
-  const [pendingCooldownOutfitId, setPendingCooldownOutfitId] = useState<
-    string | null
-  >(null);
-  const [nextCooldownOutfitId, setNextCooldownOutfitId] = useState<string | null>(
-    null,
-  );
 
   // Latest outfit list, kept in a ref so the send handler can snapshot the
   // baseline without re-binding every poll.
@@ -64,15 +58,6 @@ export default function ThreadView({ onMenuPress }: ThreadViewProps) {
       setGeneration(null);
     }
   }, [generation, selectedThreadId]);
-
-  useEffect(() => {
-    if (!nextCooldownOutfitId) return;
-    const timer = window.setTimeout(() => {
-      setNextCooldownOutfitId(null);
-    }, 10000);
-
-    return () => window.clearTimeout(timer);
-  }, [nextCooldownOutfitId]);
 
   const comments: ThreadComment[] = useMemo(
     () => thread.thread?.comments ?? [],
@@ -149,7 +134,6 @@ export default function ThreadView({ onMenuPress }: ThreadViewProps) {
         if (result.revealed && result.outfit_id) {
           setScrollToOutfitId(result.outfit_id);
           setRevealOutfitId(result.outfit_id);
-          setPendingCooldownOutfitId(result.outfit_id);
           await outfits.refresh();
         } else {
           await handleSendMessage(latestPrompt);
@@ -176,8 +160,13 @@ export default function ThreadView({ onMenuPress }: ThreadViewProps) {
         prompt: trimmed,
         source: "remix",
       });
-      await apiClient.remixOutfit(outfit.id, trimmed);
-      await Promise.all([thread.refresh(), outfits.refresh()]);
+      const result = await apiClient.remixOutfit(outfit.id, trimmed);
+      await outfits.refresh();
+      if (result.outfit_id) {
+        setScrollToOutfitId(result.outfit_id);
+        setRevealOutfitId(result.outfit_id);
+      }
+      void thread.refresh();
     } catch (error) {
       setGeneration(null);
       console.error("Failed to remix outfit:", error);
@@ -268,14 +257,7 @@ export default function ThreadView({ onMenuPress }: ThreadViewProps) {
         onToggleSaved={toggleOutfitSaved}
         scrollToOutfitId={scrollToOutfitId}
         revealOutfitId={revealOutfitId}
-        onRevealComplete={() => {
-          if (pendingCooldownOutfitId) {
-            setNextCooldownOutfitId(pendingCooldownOutfitId);
-            setPendingCooldownOutfitId(null);
-          }
-          setRevealOutfitId(null);
-        }}
-        nextCooldownOutfitId={nextCooldownOutfitId}
+        onRevealComplete={() => setRevealOutfitId(null)}
       />
 
       {visibleOutfits.length === 0 && !waitingForFreshOutfit && (

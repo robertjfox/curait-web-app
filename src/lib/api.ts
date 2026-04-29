@@ -1,6 +1,13 @@
 import axios from "axios";
 import type { components } from "@/types/api.generated";
-import type { Thread, ThreadSummary, Outfit, User } from "@/types/api";
+import type {
+  Thread,
+  ThreadSummary,
+  Outfit,
+  User,
+  SavedProduct,
+  SearchResult,
+} from "@/types/api";
 
 type Schemas = components["schemas"];
 type ThreadCreateRequest = Schemas["ThreadCreateRequest"];
@@ -103,6 +110,23 @@ interface ListOutfitsResponse {
 interface DeleteThreadResponse {
   success: boolean;
   thread_id: string;
+}
+
+interface ToggleSavedProductRequest {
+  saved: boolean;
+  product: SearchResult;
+  outfit_id?: string | null;
+  outfit_item_id?: string | null;
+}
+
+interface ToggleSavedProductResponse {
+  success: boolean;
+  saved_product?: SavedProduct;
+}
+
+interface ListSavedProductsResponse {
+  success: boolean;
+  products: SavedProduct[];
 }
 
 export const apiClient = {
@@ -251,5 +275,23 @@ export const apiClient = {
       `/api/threads/${encodeURIComponent(threadId)}`
     );
     return data;
+  },
+
+  async toggleSavedProduct(
+    userId: string,
+    body: ToggleSavedProductRequest
+  ): Promise<ToggleSavedProductResponse> {
+    const { data } = await api.post<ToggleSavedProductResponse>(
+      `/api/users/${encodeURIComponent(userId)}/saved-products`,
+      body
+    );
+    return data;
+  },
+
+  async listSavedProducts(userId: string): Promise<SavedProduct[]> {
+    const { data } = await api.get<ListSavedProductsResponse>(
+      `/api/users/${encodeURIComponent(userId)}/saved-products`
+    );
+    return data.products ?? [];
   },
 };

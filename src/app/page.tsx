@@ -6,6 +6,7 @@ import Sidebar from "@/components/layout/Sidebar";
 import ThreadView from "@/components/thread/ThreadView";
 import OnboardingFlow from "@/components/onboarding/OnboardingFlow";
 import SavedLooksView from "@/components/outfits/SavedLooksView";
+import ShoppingListView from "@/components/products/ShoppingListView";
 import type { User } from "@/types/api";
 
 export default function Home() {
@@ -61,6 +62,8 @@ function MainLayout() {
       <div className="flex flex-1 flex-col overflow-hidden">
         {activeView === "saved" ? (
           <SavedLooksView />
+        ) : activeView === "shopping" ? (
+          <ShoppingListView />
         ) : (
           <ThreadView onMenuPress={() => setSidebarOpen(true)} />
         )}
