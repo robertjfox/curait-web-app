@@ -1,26 +1,85 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+body {
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+}
+
+@utility scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@keyframes product-fly-into-button {
+  0% {
+    opacity: 0;
+    filter: blur(2px);
+    transform: translate(calc(-50% + var(--fly-x, 0px)), -190px) scale(2.15)
+      rotate(var(--fly-rotate, 0deg));
+  }
+  18% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  58% {
+    transform: translate(calc(-50% + var(--fly-arc-x, 0px)), -72px) scale(1.15)
+      rotate(calc(var(--fly-rotate, 0deg) * -0.35));
+  }
+  86% {
+    opacity: 1;
+    transform: translate(calc(-50% + var(--fly-stack-x, 0px)), calc(-50% + var(--fly-stack-y, 0px)))
+      scale(0.78) rotate(var(--fly-stack-rotate, 0deg));
+  }
+  100% {
+    opacity: 0.9;
+    filter: blur(0);
+    transform: translate(calc(-50% + var(--fly-stack-x, 0px)), calc(-50% + var(--fly-stack-y, 0px)))
+      scale(0.66) rotate(var(--fly-stack-rotate, 0deg));
+  }
+}
+
+.product-fly-into-button {
+  animation: product-fly-into-button 1150ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes product-collect-overlay {
+  0%,
+  78% {
+    opacity: 1;
+    visibility: visible;
+  }
+  100% {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+.product-collect-overlay {
+  animation: product-collect-overlay 1100ms ease-out both;
+}
+
+@keyframes product-collect-to-button {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+  30% {
+    opacity: 1;
+    transform: translate(calc(var(--collect-x) * 0.18), -18px) scale(0.92);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--collect-x), var(--collect-y)) scale(0.28);
+  }
+}
+
+.product-collect-to-button {
+  animation: product-collect-to-button 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
