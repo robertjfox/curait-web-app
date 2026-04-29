@@ -9,7 +9,11 @@ function getImageUrl(outfit: Outfit): string | null {
   return outfit.default_rendering_url || outfit.vton_image_url || null;
 }
 
-export default function SavedLooksView() {
+export default function SavedLooksView({
+  onMenuPress,
+}: {
+  onMenuPress?: () => void;
+}) {
   const { savedOutfits, toggleOutfitSaved } = useDataContext();
   const [selectedOutfitId, setSelectedOutfitId] = useState<string | null>(null);
   const selectedOutfit = useMemo(
@@ -49,6 +53,9 @@ export default function SavedLooksView() {
         >
           Saved looks
         </button>
+        {onMenuPress && (
+          <MobileMenuButton onClick={onMenuPress} />
+        )}
       </div>
     );
   }
@@ -56,8 +63,11 @@ export default function SavedLooksView() {
   return (
     <div className="flex flex-1 flex-col overflow-y-auto bg-black px-5 py-8 text-white">
       <div className="mx-auto w-full max-w-6xl">
-        <div className="mb-6">
+        <div className="mb-6 flex items-center justify-between gap-4">
           <h1 className="text-3xl font-semibold">Saved looks</h1>
+          {onMenuPress && (
+            <MobileMenuButton onClick={onMenuPress} inline />
+          )}
         </div>
 
         {savedOutfits.loading ? (
@@ -100,5 +110,40 @@ export default function SavedLooksView() {
         )}
       </div>
     </div>
+  );
+}
+
+function MobileMenuButton({
+  onClick,
+  inline = false,
+}: {
+  onClick: () => void;
+  inline?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`${
+        inline
+          ? "relative md:hidden"
+          : "absolute right-4 top-[max(1rem,env(safe-area-inset-top))] z-30 md:hidden"
+      } flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur transition hover:bg-white/15`}
+      aria-label="Open menu"
+    >
+      <svg
+        className="h-5 w-5"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+        strokeWidth={2}
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M4 6h16M4 12h16M4 18h16"
+        />
+      </svg>
+    </button>
   );
 }

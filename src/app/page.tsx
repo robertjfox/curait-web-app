@@ -61,9 +61,9 @@ function MainLayout() {
       />
       <div className="flex flex-1 flex-col overflow-hidden">
         {activeView === "saved" ? (
-          <SavedLooksView />
+          <SavedLooksView onMenuPress={() => setSidebarOpen(true)} />
         ) : activeView === "shopping" ? (
-          <ShoppingListView />
+          <ShoppingListView onMenuPress={() => setSidebarOpen(true)} />
         ) : (
           <ThreadView onMenuPress={() => setSidebarOpen(true)} />
         )}

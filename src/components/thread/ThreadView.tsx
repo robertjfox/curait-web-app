@@ -253,6 +253,7 @@ export default function ThreadView({ onMenuPress }: ThreadViewProps) {
         isGenerating={waitingForFreshOutfit}
         autoScrollToPending={generation?.source !== "remix"}
         onGenerateNext={handleGenerateNextOutfit}
+        onMenuPress={onMenuPress}
         onRemixOutfit={handleRemixOutfit}
         onToggleSaved={toggleOutfitSaved}
         scrollToOutfitId={scrollToOutfitId}
@@ -273,8 +274,6 @@ export default function ThreadView({ onMenuPress }: ThreadViewProps) {
           </div>
         </div>
       )}
-
-      <TopHud onMenuPress={onMenuPress} />
 
     </div>
   );

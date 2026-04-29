@@ -8,14 +8,21 @@ function priceForCard(price?: string | null): string | null {
   return price.split(".")[0];
 }
 
-export default function ShoppingListView() {
+export default function ShoppingListView({
+  onMenuPress,
+}: {
+  onMenuPress?: () => void;
+}) {
   const { savedProducts, toggleProductSaved } = useDataContext();
 
   return (
     <div className="flex flex-1 flex-col overflow-y-auto bg-black px-5 py-8 text-white">
       <div className="mx-auto w-full max-w-6xl">
-        <div className="mb-6">
+        <div className="mb-6 flex items-center justify-between gap-4">
           <h1 className="text-3xl font-semibold">Shopping list</h1>
+          {onMenuPress && (
+            <MobileMenuButton onClick={onMenuPress} />
+          )}
         </div>
 
         {savedProducts.loading ? (
@@ -44,6 +51,31 @@ export default function ShoppingListView() {
         )}
       </div>
     </div>
+  );
+}
+
+function MobileMenuButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur transition hover:bg-white/15 md:hidden"
+      aria-label="Open menu"
+    >
+      <svg
+        className="h-5 w-5"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+        strokeWidth={2}
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M4 6h16M4 12h16M4 18h16"
+        />
+      </svg>
+    </button>
   );
 }
 

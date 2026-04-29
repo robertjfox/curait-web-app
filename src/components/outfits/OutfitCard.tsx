@@ -19,6 +19,7 @@ interface OutfitCardProps {
   onRevealComplete?: () => void;
   nextDisabled?: boolean;
   onNextOutfit?: () => void;
+  onMenuPress?: () => void;
   onRemixOutfit?: (outfit: Outfit, feedback: string) => Promise<void>;
   onToggleSaved?: (outfit: Outfit, saved: boolean) => Promise<void>;
 }
@@ -50,6 +51,7 @@ export default function OutfitCard({
   onRevealComplete,
   nextDisabled = false,
   onNextOutfit,
+  onMenuPress,
   onRemixOutfit,
   onToggleSaved,
 }: OutfitCardProps) {
@@ -134,14 +136,14 @@ export default function OutfitCard({
   }, [imageOnScreen]);
 
   return (
-    <article className="relative h-full w-full overflow-hidden bg-[radial-gradient(circle_at_top,#2f2f2f,transparent_38%),linear-gradient(180deg,#101010,#050505)] text-white">
+    <article className="relative flex h-full w-full flex-col overflow-hidden bg-[radial-gradient(circle_at_top,#2f2f2f,transparent_38%),linear-gradient(180deg,#101010,#050505)] text-white md:block">
       {displayImageUrl ? (
         <>
-          <div className="slide-image-zoom absolute inset-0">
+          <div className="slide-image-zoom relative flex-1 md:absolute md:inset-0">
             <img
               src={displayImageUrl}
               alt={title}
-              className={`absolute inset-x-0 top-0 h-[calc(100%-3.25rem)] w-full scale-[1.01] rounded-2xl object-cover object-top md:hidden ${avatarRevealClass}`}
+              className={`absolute inset-0 h-full w-full rounded-2xl object-cover object-top md:hidden ${avatarRevealClass}`}
             />
             <div className="absolute inset-x-0 top-0 bottom-[6.25rem] hidden items-center justify-center px-4 pt-10 md:flex">
               <img
@@ -156,7 +158,7 @@ export default function OutfitCard({
           )}
         </>
       ) : (
-        <div className="absolute inset-0">
+        <div className="relative flex-1 md:absolute md:inset-0">
           {items.length > 0 ? (
             <div className="flex h-full items-center px-5 pb-24 pt-20">
               <ProductPreviewRows items={items} />
@@ -192,6 +194,7 @@ export default function OutfitCard({
         }}
         nextDisabled={loading || nextDisabled || simulateReveal || cooldownActive}
         nextCountdown={cooldownActive}
+        onMenuPress={onMenuPress}
       />
 
       {productsOpen && outfit && (
@@ -678,6 +681,7 @@ function BottomActionBar({
   onSave,
   nextDisabled,
   nextCountdown,
+  onMenuPress,
 }: {
   className?: string;
   contained?: boolean;
@@ -691,16 +695,30 @@ function BottomActionBar({
   onSave: () => void;
   nextDisabled: boolean;
   nextCountdown: boolean;
+  onMenuPress?: () => void;
 }) {
   return (
     <div
       className={`${
         contained
           ? "relative"
-          : "absolute inset-x-4 bottom-[max(0.75rem,env(safe-area-inset-bottom))]"
-      } z-10 rounded-full bg-black/45 px-4 py-3 text-white shadow-2xl backdrop-blur-md ${className}`}
+          : "relative mx-4 h-20 shrink-0 md:absolute md:inset-x-4 md:bottom-[max(0.75rem,env(safe-area-inset-bottom))] md:mx-0"
+      } z-10 rounded-full bg-black/45 px-4 text-white shadow-2xl backdrop-blur-md ${className}`}
     >
-      <div className="flex items-center justify-between">
+      <div className="flex h-full items-center justify-between">
+        {onMenuPress && (
+          <ActionButton
+            label="Open menu"
+            onClick={onMenuPress}
+            className="md:hidden"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M4 6h16M4 12h16M4 18h16"
+            />
+          </ActionButton>
+        )}
         <ActionButton
           label={isSaved ? "Unsave look" : "Save look"}
           disabled={!canSave}
@@ -711,13 +729,6 @@ function BottomActionBar({
             strokeLinecap="round"
             strokeLinejoin="round"
             d="M14 9V5a3 3 0 00-6 0v4H5a2 2 0 00-2 2v8a2 2 0 002 2h12.28a2 2 0 001.95-1.57l1.56-7A2 2 0 0018.84 10H14z"
-          />
-        </ActionButton>
-        <ActionButton label="Dislike">
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M10 15v4a3 3 0 006 0v-4h3a2 2 0 002-2V5a2 2 0 00-2-2H6.72a2 2 0 00-1.95 1.57l-1.56 7A2 2 0 005.16 14H10z"
           />
         </ActionButton>
         <ActionButton
@@ -758,6 +769,7 @@ function ActionButton({
   active = false,
   countdown = false,
   onClick,
+  className = "",
 }: {
   children: ReactNode;
   label: string;
@@ -765,6 +777,7 @@ function ActionButton({
   active?: boolean;
   countdown?: boolean;
   onClick?: () => void;
+  className?: string;
 }) {
   return (
     <button
@@ -773,7 +786,7 @@ function ActionButton({
       disabled={disabled}
       className={`relative flex h-14 w-14 items-center justify-center rounded-full transition hover:bg-white/10 disabled:text-white/30 ${
         active ? "bg-white text-black hover:bg-white/90" : "text-white"
-      }`}
+      } ${className}`}
       aria-label={label}
       title={label}
     >

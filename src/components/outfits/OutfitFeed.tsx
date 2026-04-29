@@ -13,6 +13,7 @@ interface OutfitFeedProps {
   isGenerating?: boolean;
   autoScrollToPending?: boolean;
   onGenerateNext?: () => void;
+  onMenuPress?: () => void;
   onRemixOutfit?: (outfit: Outfit, feedback: string) => Promise<void>;
   onToggleSaved?: (outfit: Outfit, saved: boolean) => Promise<void>;
   scrollToOutfitId?: string | null;
@@ -27,6 +28,7 @@ export default function OutfitFeed({
   isGenerating = false,
   autoScrollToPending = true,
   onGenerateNext,
+  onMenuPress,
   onRemixOutfit,
   onToggleSaved,
   scrollToOutfitId,
@@ -100,6 +102,15 @@ export default function OutfitFeed({
     child?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
+  function handleNextFromCard(index: number) {
+    const nextIndex = index + 1;
+    if (nextIndex < outfits.length) {
+      scrollToCard(nextIndex);
+      return;
+    }
+    onGenerateNext?.();
+  }
+
   // Continuously map each slide's distance from the viewport center to a
   // CSS scale variable so the active slide grows as you flick it away and
   // the incoming slide eases back to its resting size. Throttled via rAF
@@ -107,6 +118,14 @@ export default function OutfitFeed({
   // would cause paint flicker on top of an already heavy snap animation.
   const rafRef = useRef<number | null>(null);
   const lastIndexRef = useRef(0);
+
+  // Mobile gets a more dramatic zoom-out on the outgoing slide because
+  // the action bar dominates more of the viewport, so a subtle effect
+  // reads as flat. Desktop keeps the lighter touch.
+  function getZoomMagnitude() {
+    if (typeof window === "undefined") return 0.15;
+    return window.matchMedia("(pointer: coarse)").matches ? 0.3 : 0.15;
+  }
 
   function scheduleScrollUpdate() {
     if (rafRef.current !== null) return;
@@ -119,6 +138,7 @@ export default function OutfitFeed({
 
       const scrollTop = container.scrollTop;
       const viewportCenter = scrollTop + height / 2;
+      const magnitude = getZoomMagnitude();
 
       const nextIndex = Math.round(scrollTop / height);
       if (nextIndex !== lastIndexRef.current) {
@@ -139,7 +159,7 @@ export default function OutfitFeed({
         const slideCenter = i * height + height / 2;
         const offset = Math.abs(viewportCenter - slideCenter) / height;
         const clamped = Math.min(offset, 1);
-        const scale = 1 + 0.15 * clamped;
+        const scale = 1 + magnitude * clamped;
         slide.style.setProperty("--slide-zoom", scale.toFixed(4));
       }
     });
@@ -218,19 +238,21 @@ export default function OutfitFeed({
             shouldSimulateReveal={outfit.id === revealOutfitId}
             onRevealComplete={onRevealComplete}
             nextDisabled={isWaitingForProductSearch(outfit)}
+            onMenuPress={onMenuPress}
             onRemixOutfit={onRemixOutfit}
             onToggleSaved={onToggleSaved}
-            onNextOutfit={
-              onGenerateNext ??
-              (() => scrollToCard(Math.min(index + 1, outfits.length - 1)))
-            }
+            onNextOutfit={() => handleNextFromCard(index)}
           />
         </section>
       ))}
 
       {showPendingCard && (
         <section className="h-full w-full snap-start snap-always">
-          <OutfitCard loading prompt={pendingPrompt} />
+          <OutfitCard
+            loading
+            prompt={pendingPrompt}
+            onMenuPress={onMenuPress}
+          />
         </section>
       )}
     </div>
