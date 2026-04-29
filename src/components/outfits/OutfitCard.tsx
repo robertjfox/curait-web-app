@@ -59,10 +59,10 @@ export default function OutfitCard({
     shouldSimulateReveal && revealState.outfitId === outfit?.id
       ? revealState.phase
       : "loading";
-  const showImage =
-    Boolean(imageUrl) &&
-    !loading &&
-    (!shouldSimulateReveal || revealPhase !== "loading");
+  const displayImageUrl =
+    imageUrl && !loading && (!shouldSimulateReveal || revealPhase !== "loading")
+      ? imageUrl
+      : null;
   const productPreviewImages = useMemo(
     () =>
       getImageBackedProducts(items.flatMap((item) => item.search_results ?? []))
@@ -92,10 +92,10 @@ export default function OutfitCard({
 
   return (
     <article className="relative h-full w-full overflow-hidden bg-black text-white">
-      {showImage ? (
+      {displayImageUrl ? (
         <>
           <img
-            src={imageUrl}
+            src={displayImageUrl}
             alt={title}
             className="absolute inset-x-0 top-0 h-[calc(100%-3.25rem)] w-full scale-[1.01] object-cover object-top"
           />
@@ -115,7 +115,7 @@ export default function OutfitCard({
         </div>
       )}
 
-      {!showImage && (
+      {!displayImageUrl && (
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/55 via-transparent to-black/80" />
       )}
 
