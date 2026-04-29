@@ -9,9 +9,14 @@ interface OutfitFeedProps {
   selectedOutfitId?: string;
   pendingPrompt?: string;
   isGenerating?: boolean;
+  autoScrollToPending?: boolean;
   onGenerateNext?: () => void;
   onRemixOutfit?: (outfit: Outfit, feedback: string) => Promise<void>;
+  onToggleSaved?: (outfit: Outfit) => Promise<void>;
   scrollToOutfitId?: string | null;
+  revealOutfitId?: string | null;
+  onRevealComplete?: () => void;
+  nextCooldownOutfitId?: string | null;
 }
 
 export default function OutfitFeed({
@@ -19,9 +24,14 @@ export default function OutfitFeed({
   selectedOutfitId,
   pendingPrompt,
   isGenerating = false,
+  autoScrollToPending = true,
   onGenerateNext,
   onRemixOutfit,
+  onToggleSaved,
   scrollToOutfitId,
+  revealOutfitId,
+  onRevealComplete,
+  nextCooldownOutfitId,
 }: OutfitFeedProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -47,13 +57,13 @@ export default function OutfitFeed({
   const showPendingCard = isGenerating;
 
   useEffect(() => {
-    if (!showPendingCard || !scrollRef.current) return;
+    if (!showPendingCard || !autoScrollToPending || !scrollRef.current) return;
     const container = scrollRef.current;
     const child = container.children[container.children.length - 1] as
       | HTMLElement
       | undefined;
     child?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [showPendingCard, outfits.length]);
+  }, [autoScrollToPending, showPendingCard, outfits.length]);
 
   function scrollToCard(index: number) {
     const container = scrollRef.current;
@@ -79,10 +89,16 @@ export default function OutfitFeed({
       {outfits.map((outfit, index) => (
         <section key={outfit.id} className="h-full w-full snap-start snap-always">
           <OutfitCard
+            key={`${outfit.id}-${index === activeIndex ? "active" : "inactive"}`}
             outfit={outfit}
             prompt={pendingPrompt}
             isActive={index === activeIndex}
+            shouldSimulateReveal={outfit.id === revealOutfitId}
+            onRevealComplete={onRevealComplete}
+            nextDisabled={outfit.id === nextCooldownOutfitId}
+            nextCountdown={outfit.id === nextCooldownOutfitId}
             onRemixOutfit={onRemixOutfit}
+            onToggleSaved={onToggleSaved}
             onNextOutfit={
               onGenerateNext ??
               (() => scrollToCard(Math.min(index + 1, outfits.length - 1)))

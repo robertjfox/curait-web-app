@@ -17,6 +17,7 @@ interface GenerationCycle {
   startedAt: number;
   baselineOutfitIds: Set<string>;
   prompt: string;
+  source: "message" | "remix";
 }
 
 interface PendingComment {
@@ -35,12 +36,20 @@ export default function ThreadView({ onMenuPress }: ThreadViewProps) {
     outfits,
     sendMessage,
     createThread,
+    toggleOutfitSaved,
   } = useDataContext();
 
   const [sending, setSending] = useState(false);
   const [generation, setGeneration] = useState<GenerationCycle | null>(null);
   const [pendingComments, setPendingComments] = useState<PendingComment[]>([]);
   const [scrollToOutfitId, setScrollToOutfitId] = useState<string | null>(null);
+  const [revealOutfitId, setRevealOutfitId] = useState<string | null>(null);
+  const [pendingCooldownOutfitId, setPendingCooldownOutfitId] = useState<
+    string | null
+  >(null);
+  const [nextCooldownOutfitId, setNextCooldownOutfitId] = useState<string | null>(
+    null,
+  );
 
   // Latest outfit list, kept in a ref so the send handler can snapshot the
   // baseline without re-binding every poll.
@@ -55,6 +64,15 @@ export default function ThreadView({ onMenuPress }: ThreadViewProps) {
       setGeneration(null);
     }
   }, [generation, selectedThreadId]);
+
+  useEffect(() => {
+    if (!nextCooldownOutfitId) return;
+    const timer = window.setTimeout(() => {
+      setNextCooldownOutfitId(null);
+    }, 10000);
+
+    return () => window.clearTimeout(timer);
+  }, [nextCooldownOutfitId]);
 
   const comments: ThreadComment[] = useMemo(
     () => thread.thread?.comments ?? [],
@@ -101,6 +119,7 @@ export default function ThreadView({ onMenuPress }: ThreadViewProps) {
         startedAt: Date.now(),
         baselineOutfitIds: new Set(latestOutfitIdsRef.current),
         prompt: trimmed,
+        source: "message",
       });
       await sendMessage(threadId, trimmed);
     } catch (error) {
@@ -129,6 +148,8 @@ export default function ThreadView({ onMenuPress }: ThreadViewProps) {
       .then(async (result) => {
         if (result.revealed && result.outfit_id) {
           setScrollToOutfitId(result.outfit_id);
+          setRevealOutfitId(result.outfit_id);
+          setPendingCooldownOutfitId(result.outfit_id);
           await outfits.refresh();
         } else {
           await handleSendMessage(latestPrompt);
@@ -153,6 +174,7 @@ export default function ThreadView({ onMenuPress }: ThreadViewProps) {
         startedAt: Date.now(),
         baselineOutfitIds: new Set(latestOutfitIdsRef.current),
         prompt: trimmed,
+        source: "remix",
       });
       await apiClient.remixOutfit(outfit.id, trimmed);
       await Promise.all([thread.refresh(), outfits.refresh()]);
@@ -180,6 +202,9 @@ export default function ThreadView({ onMenuPress }: ThreadViewProps) {
 
   const waitingForFreshOutfit = Boolean(generation) && freshOutfits.length === 0;
   const firstName = selectedUser?.first_name?.trim();
+  const promptSuggestions =
+    selectedUser?.prompt_suggestions?.prompts?.filter((prompt) => prompt.trim()) ??
+    [];
   const visibleOutfits = useMemo(
     () => outfits.outfits.filter((outfit) => !outfit.is_cached),
     [outfits.outfits]
@@ -202,10 +227,20 @@ export default function ThreadView({ onMenuPress }: ThreadViewProps) {
           <h1 className="max-w-sm text-4xl font-semibold leading-tight">
             {firstName ? `Welcome back, ${firstName}.` : "Say the vibe. Swipe the looks."}
           </h1>
-          {firstName && (
-            <p className="mt-4 max-w-xs text-sm text-white/55">
-              Your stylist profile is ready.
-            </p>
+          {promptSuggestions.length > 0 && (
+            <div className="mt-8 flex max-w-2xl flex-wrap justify-center gap-2">
+              {promptSuggestions.map((prompt) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  onClick={() => handleSendMessage(prompt)}
+                  disabled={sending || !selectedUserId}
+                  className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm text-white/80 transition hover:border-white/30 hover:bg-white/15 hover:text-white disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
           )}
         </div>
 
@@ -227,9 +262,20 @@ export default function ThreadView({ onMenuPress }: ThreadViewProps) {
         outfits={visibleOutfits}
         pendingPrompt={generation?.prompt || latestPrompt}
         isGenerating={waitingForFreshOutfit}
+        autoScrollToPending={generation?.source !== "remix"}
         onGenerateNext={handleGenerateNextOutfit}
         onRemixOutfit={handleRemixOutfit}
+        onToggleSaved={toggleOutfitSaved}
         scrollToOutfitId={scrollToOutfitId}
+        revealOutfitId={revealOutfitId}
+        onRevealComplete={() => {
+          if (pendingCooldownOutfitId) {
+            setNextCooldownOutfitId(pendingCooldownOutfitId);
+            setPendingCooldownOutfitId(null);
+          }
+          setRevealOutfitId(null);
+        }}
+        nextCooldownOutfitId={nextCooldownOutfitId}
       />
 
       {visibleOutfits.length === 0 && !waitingForFreshOutfit && (
@@ -258,7 +304,7 @@ function TopHud({
   onMenuPress: () => void;
 }) {
   return (
-    <div className="absolute left-0 top-0 z-30 px-4 pt-[max(1rem,env(safe-area-inset-top))] text-white">
+    <div className="absolute left-0 top-0 z-30 px-4 pt-[max(1rem,env(safe-area-inset-top))] text-white md:hidden">
       <button
         onClick={onMenuPress}
         className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-black/35 backdrop-blur"

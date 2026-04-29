@@ -33,9 +33,8 @@ function sortOutfitsItems(outfits: Outfit[]): Outfit[] {
 }
 
 /**
- * Repeatedly call `fetcher` while the page is visible. Default interval is
- * tuned to feel near-realtime (outfit generation takes 3–8s) while keeping
- * server load trivial. Pauses when the tab is hidden.
+ * Repeatedly call `fetcher` while the page is visible. Pauses when the tab is
+ * hidden so local development doesn't keep a hot polling loop in the background.
  */
 function usePolling(
   fetcher: (() => Promise<void>) | null,
@@ -120,7 +119,7 @@ export function useThreads(userId: string | null) {
     refresh();
   }, [refresh]);
 
-  usePolling(userId ? refresh : null, 4000);
+  usePolling(userId ? refresh : null, 10000);
 
   return { threads, loading, refresh };
 }
@@ -157,7 +156,7 @@ export function useThread(threadId: string | null) {
     refresh();
   }, [refresh]);
 
-  usePolling(threadId ? refresh : null, 1000);
+  usePolling(threadId ? refresh : null, 4000);
 
   return { thread, loading, refresh };
 }
@@ -194,7 +193,7 @@ export function useThreadOutfits(threadId: string | null) {
     refresh();
   }, [refresh]);
 
-  usePolling(threadId ? refresh : null, 1000);
+  usePolling(threadId ? refresh : null, 4000);
 
   return { outfits, loading, refresh };
 }

@@ -20,6 +20,8 @@ const LOCAL_USER_TOKEN_KEY = "curaitUserToken";
 const TOKEN_CHANGE_EVENT = "curait-user-token-change";
 let guestProvisionPromise: Promise<string | null> | null = null;
 
+type AppView = "thread" | "saved";
+
 function readStoredUserId(): string | null {
   if (typeof window === "undefined") return null;
   try {
@@ -66,6 +68,8 @@ interface DataContextType {
   selectedUserId: string | null;
   selectedUser: User | null;
   refreshSelectedUser: () => Promise<void>;
+  activeView: AppView;
+  setActiveView: (view: AppView) => void;
   selectedThreadId: string | null;
   setSelectedThreadId: (threadId: string | null) => void;
 
@@ -84,10 +88,16 @@ interface DataContextType {
     loading: boolean;
     refresh: () => Promise<void>;
   };
+  savedOutfits: {
+    outfits: Outfit[];
+    loading: boolean;
+    refresh: () => Promise<void>;
+  };
 
   sendMessage: (threadId: string, messageText: string) => Promise<void>;
   createThread: (userId: string) => Promise<string>;
   deleteThread: (threadId: string) => Promise<void>;
+  toggleOutfitSaved: (outfit: Outfit) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -100,8 +110,11 @@ export function useDataContext() {
 
 export function DataProvider({ children }: { children: ReactNode }) {
   const [storedUserId, storageReady, setStoredUserId] = useStoredUserId();
+  const [activeView, setActiveView] = useState<AppView>("thread");
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [savedOutfitRows, setSavedOutfitRows] = useState<Outfit[]>([]);
+  const [savedOutfitsLoading, setSavedOutfitsLoading] = useState(false);
 
   // First-visit bootstrap: create an anonymous user row and persist its id as
   // the local token. Onboarding completion is derived from that row's data.
@@ -158,6 +171,27 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const thread = useThread(selectedThreadId);
   const outfits = useThreadOutfits(selectedThreadId);
 
+  const refreshSavedOutfits = useCallback(async () => {
+    if (!selectedUserId) {
+      setSavedOutfitRows([]);
+      return;
+    }
+
+    setSavedOutfitsLoading(true);
+    try {
+      setSavedOutfitRows(await apiClient.listSavedOutfits(selectedUserId));
+    } catch (error) {
+      console.error("Failed to load saved outfits:", error);
+      setSavedOutfitRows([]);
+    } finally {
+      setSavedOutfitsLoading(false);
+    }
+  }, [selectedUserId]);
+
+  useEffect(() => {
+    refreshSavedOutfits();
+  }, [refreshSavedOutfits]);
+
   const sendMessage = async (threadId: string, messageText: string) => {
     await apiClient.sendChatMessage(threadId, messageText);
     // Immediate refresh; polling will continue to pick up subsequent changes.
@@ -178,18 +212,32 @@ export function DataProvider({ children }: { children: ReactNode }) {
     threads.refresh();
   };
 
+  const toggleOutfitSaved = async (outfit: Outfit) => {
+    const nextSaved = !outfit.saved;
+    await apiClient.setOutfitSaved(outfit.id, nextSaved);
+    await Promise.all([outfits.refresh(), refreshSavedOutfits()]);
+  };
+
   const value: DataContextType = {
     selectedUserId,
     selectedUser,
     refreshSelectedUser,
+    activeView,
+    setActiveView,
     selectedThreadId,
     setSelectedThreadId,
     threads,
     thread,
     outfits,
+    savedOutfits: {
+      outfits: savedOutfitRows,
+      loading: savedOutfitsLoading,
+      refresh: refreshSavedOutfits,
+    },
     sendMessage,
     createThread,
     deleteThread,
+    toggleOutfitSaved,
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

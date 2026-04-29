@@ -5,6 +5,7 @@ import { DataProvider, useDataContext } from "@/contexts/DataContext";
 import Sidebar from "@/components/layout/Sidebar";
 import ThreadView from "@/components/thread/ThreadView";
 import OnboardingFlow from "@/components/onboarding/OnboardingFlow";
+import SavedLooksView from "@/components/outfits/SavedLooksView";
 import type { User } from "@/types/api";
 
 export default function Home() {
@@ -17,7 +18,8 @@ export default function Home() {
 
 function MainLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { selectedUserId, selectedUser, refreshSelectedUser } = useDataContext();
+  const { activeView, selectedUserId, selectedUser, refreshSelectedUser } =
+    useDataContext();
   const onboardingComplete = isUserOnboarded(selectedUser);
 
   async function handleOnboardingComplete() {
@@ -57,7 +59,11 @@ function MainLayout() {
         onCloseSidebar={() => setSidebarOpen(false)}
       />
       <div className="flex flex-1 flex-col overflow-hidden">
-        <ThreadView onMenuPress={() => setSidebarOpen(true)} />
+        {activeView === "saved" ? (
+          <SavedLooksView />
+        ) : (
+          <ThreadView onMenuPress={() => setSidebarOpen(true)} />
+        )}
       </div>
     </div>
   );

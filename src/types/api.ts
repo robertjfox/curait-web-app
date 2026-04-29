@@ -48,6 +48,7 @@ export interface Outfit {
   description?: string | null;
   outfit_order?: number;
   is_cached?: boolean;
+  saved?: boolean;
   vton_image_url?: string | null;
   default_rendering_url?: string | null;
   created_at: string;

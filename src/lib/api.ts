@@ -43,6 +43,11 @@ export interface RevealNextOutfitResponse {
   revealed: boolean;
 }
 
+export interface SavedOutfitResponse {
+  success: boolean;
+  outfit: Outfit;
+}
+
 export interface CreateGuestUserResponse {
   success: boolean;
   user_id: string;
@@ -191,6 +196,17 @@ export const apiClient = {
     return data;
   },
 
+  async setOutfitSaved(
+    outfitId: string,
+    saved: boolean
+  ): Promise<SavedOutfitResponse> {
+    const { data } = await api.patch<SavedOutfitResponse>(
+      `/api/outfits/${encodeURIComponent(outfitId)}/saved`,
+      { saved }
+    );
+    return data;
+  },
+
   async revealNextOutfit(threadId: string): Promise<RevealNextOutfitResponse> {
     const { data } = await api.post<RevealNextOutfitResponse>(
       `/api/threads/${encodeURIComponent(threadId)}/outfits/next`
@@ -219,6 +235,13 @@ export const apiClient = {
   async listThreadOutfits(threadId: string): Promise<Outfit[]> {
     const { data } = await api.get<ListOutfitsResponse>(
       `/api/threads/${encodeURIComponent(threadId)}/outfits`
+    );
+    return data.outfits ?? [];
+  },
+
+  async listSavedOutfits(userId: string): Promise<Outfit[]> {
+    const { data } = await api.get<ListOutfitsResponse>(
+      `/api/outfits/saved/by-user/${encodeURIComponent(userId)}`
     );
     return data.outfits ?? [];
   },

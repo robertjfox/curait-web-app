@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { getImageBackedProducts, getProductImageUrl } from "@/lib/productImages";
+import {
+  getImageBackedProducts,
+  getProductImageUrl,
+} from "@/lib/productImages";
 import type { CSSProperties, ReactNode } from "react";
 import type { Outfit, OutfitItem, SearchResult } from "@/types/api";
 
@@ -10,8 +13,13 @@ interface OutfitCardProps {
   loading?: boolean;
   prompt?: string;
   isActive?: boolean;
+  shouldSimulateReveal?: boolean;
+  onRevealComplete?: () => void;
+  nextDisabled?: boolean;
+  nextCountdown?: boolean;
   onNextOutfit?: () => void;
   onRemixOutfit?: (outfit: Outfit, feedback: string) => Promise<void>;
+  onToggleSaved?: (outfit: Outfit) => Promise<void>;
 }
 
 function getImageUrl(outfit?: Outfit): string | null {
@@ -31,8 +39,13 @@ export default function OutfitCard({
   loading = false,
   prompt,
   isActive = false,
+  shouldSimulateReveal = false,
+  onRevealComplete,
+  nextDisabled = false,
+  nextCountdown = false,
   onNextOutfit,
   onRemixOutfit,
+  onToggleSaved,
 }: OutfitCardProps) {
   const [productsOpen, setProductsOpen] = useState(false);
   const [remixOpen, setRemixOpen] = useState(false);
@@ -40,71 +53,79 @@ export default function OutfitCard({
     outfitId: string | null;
     phase: "loading" | "collecting" | "image";
   }>({ outfitId: null, phase: "loading" });
-  const [revealedOutfitIds, setRevealedOutfitIds] = useState<Set<string>>(
-    () => new Set()
-  );
   const imageUrl = getImageUrl(outfit);
   const items = useMemo(
     () => outfit?.outfit_items ?? [],
-    [outfit?.outfit_items]
+    [outfit?.outfit_items],
   );
-  const shouldSimulateReveal = Boolean(
+  const simulateReveal = Boolean(
     outfit?.id &&
-      isActive &&
-      imageUrl &&
-      !loading &&
-      !revealedOutfitIds.has(outfit.id)
+    isActive &&
+    shouldSimulateReveal &&
+    imageUrl &&
+    !loading,
   );
   const revealPhase =
-    shouldSimulateReveal && revealState.outfitId === outfit?.id
+    simulateReveal && revealState.outfitId === outfit?.id
       ? revealState.phase
       : "loading";
   const displayImageUrl =
-    imageUrl && !loading && (!shouldSimulateReveal || revealPhase !== "loading")
+    imageUrl && !loading && (!simulateReveal || revealPhase !== "loading")
       ? imageUrl
       : null;
+  const avatarRevealClass =
+    simulateReveal && revealPhase === "collecting"
+      ? "avatar-image-reveal"
+      : "";
   const productPreviewImages = useMemo(
     () =>
       getImageBackedProducts(items.flatMap((item) => item.search_results ?? []))
         .map((product) => getProductImageUrl(product))
         .filter((url): url is string => Boolean(url))
         .slice(0, 3),
-    [items]
+    [items],
   );
   const title = outfit?.name || prompt || "Your outfit";
 
   useEffect(() => {
-    if (!shouldSimulateReveal || !outfit?.id) return;
+    if (!simulateReveal || !outfit?.id) return;
 
     const collectTimer = window.setTimeout(() => {
       setRevealState({ outfitId: outfit.id, phase: "collecting" });
     }, 2200);
     const imageTimer = window.setTimeout(() => {
       setRevealState({ outfitId: outfit.id, phase: "image" });
-      setRevealedOutfitIds((current) => new Set(current).add(outfit.id));
+      onRevealComplete?.();
     }, 3400);
 
     return () => {
       window.clearTimeout(collectTimer);
       window.clearTimeout(imageTimer);
     };
-  }, [outfit?.id, shouldSimulateReveal]);
+  }, [onRevealComplete, outfit?.id, simulateReveal]);
 
   return (
-    <article className="relative h-full w-full overflow-hidden bg-black text-white">
+    <article className="relative h-full w-full overflow-hidden bg-[radial-gradient(circle_at_top,#2f2f2f,transparent_38%),linear-gradient(180deg,#101010,#050505)] text-white">
       {displayImageUrl ? (
         <>
           <img
             src={displayImageUrl}
             alt={title}
-            className="absolute inset-x-0 top-0 h-[calc(100%-3.25rem)] w-full scale-[1.01] object-cover object-top"
+            className={`absolute inset-x-0 top-0 h-[calc(100%-3.25rem)] w-full scale-[1.01] rounded-2xl object-cover object-top md:hidden ${avatarRevealClass}`}
           />
+          <div className="absolute inset-x-0 top-0 bottom-[6.25rem] hidden items-center justify-center px-4 pt-10 md:flex">
+            <img
+              src={displayImageUrl}
+              alt={title}
+              className={`max-h-full w-auto max-w-full rounded-2xl object-contain object-center ${avatarRevealClass}`}
+            />
+          </div>
           {productPreviewImages.length > 0 && revealPhase === "collecting" && (
             <ProductCollectOverlay items={items} />
           )}
         </>
       ) : (
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,#3b3b3b,transparent_35%),linear-gradient(180deg,#121212,#050505)]">
+        <div className="absolute inset-0">
           {items.length > 0 ? (
             <div className="flex h-full items-center px-5 pb-24 pt-20">
               <ProductPreviewRows items={items} />
@@ -115,16 +136,22 @@ export default function OutfitCard({
         </div>
       )}
 
-      {!displayImageUrl && (
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/55 via-transparent to-black/80" />
-      )}
-
       <BottomActionBar
+        className={
+          displayImageUrl
+            ? "md:left-1/2 md:right-auto md:w-[28rem] md:-translate-x-1/2"
+            : "md:left-1/2 md:right-auto md:w-[28rem] md:-translate-x-1/2"
+        }
         canOpenProducts={Boolean(outfit)}
         onProducts={() => outfit && setProductsOpen(true)}
         canRemix={Boolean(outfit && onRemixOutfit)}
         onRemix={() => outfit && onRemixOutfit && setRemixOpen(true)}
         onNextOutfit={onNextOutfit}
+        isSaved={Boolean(outfit?.saved)}
+        canSave={Boolean(outfit && onToggleSaved)}
+        onSave={() => outfit && onToggleSaved?.(outfit)}
+        nextDisabled={nextDisabled}
+        nextCountdown={nextCountdown}
       />
 
       {productsOpen && outfit && (
@@ -185,21 +212,28 @@ function ProductPreviewRows({
   collecting?: boolean;
 }) {
   return (
-    <div className="w-full space-y-5 overflow-hidden">
+    <div className="mx-auto w-full space-y-5 overflow-hidden md:max-w-[27rem] md:space-y-4">
       {items.map((item, rowIndex) => {
-        const products = getImageBackedProducts(item.search_results ?? []).slice(
-          0,
-          3
-        );
+        const products = getImageBackedProducts(
+          item.search_results ?? [],
+        ).slice(0, 3);
         const hasResults = (item.search_results?.length ?? 0) > 0;
         const isRanked = (item.search_results ?? []).some(
-          (product) => typeof product.ranking === "number"
+          (product) => typeof product.ranking === "number",
         );
-        const state = !hasResults ? "Searching" : !isRanked ? "Ranking" : "Ready";
+        const state = !hasResults
+          ? "Searching"
+          : !isRanked
+            ? "Ranking"
+            : "Ready";
 
         return (
           <div key={item.id} className="space-y-2">
-            <div className="flex items-center justify-between gap-3">
+            <div
+              className={`flex items-center justify-between gap-3 ${
+                collecting ? "product-keyword-collect-out" : ""
+              }`}
+            >
               <p className="truncate text-left text-xs font-medium uppercase tracking-[0.18em] text-white/55">
                 {item.title || cleanSearchTerm(item.keywords) || item.type}
               </p>
@@ -209,7 +243,7 @@ function ProductPreviewRows({
                 </span>
               )}
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-2 md:flex md:justify-center md:gap-3">
               {[0, 1, 2].map((index) => {
                 const product = products[index];
                 const imageUrl = product ? getProductImageUrl(product) : null;
@@ -218,7 +252,7 @@ function ProductPreviewRows({
                   return (
                     <div
                       key={`${product?.link || item.id}-${index}`}
-                      className={`aspect-square overflow-hidden rounded-xl bg-white/10 shadow-2xl ${
+                      className={`aspect-square overflow-hidden rounded-xl bg-white/10 shadow-2xl md:h-32 md:w-32 md:shrink-0 ${
                         collecting ? "product-collect-to-button" : ""
                       }`}
                       style={
@@ -243,7 +277,7 @@ function ProductPreviewRows({
                 return (
                   <div
                     key={`${item.id}-placeholder-${index}`}
-                    className="flex aspect-square items-center justify-center rounded-xl bg-white/10 shadow-2xl"
+                    className="flex aspect-square items-center justify-center rounded-xl bg-white/10 shadow-2xl md:h-32 md:w-32 md:shrink-0"
                   >
                     <svg
                       className="h-5 w-5 animate-spin text-white/35"
@@ -278,7 +312,7 @@ function ProductPreviewRows({
 function ProductCollectOverlay({ items }: { items: OutfitItem[] }) {
   return (
     <div className="product-collect-overlay pointer-events-none absolute inset-0 z-20 bg-black/10">
-      <div className="flex h-full items-center px-5 pb-24 pt-20">
+      <div className="flex h-full items-center px-5 pb-24 pt-20 md:items-start md:pt-24">
         <ProductPreviewRows items={items} collecting />
       </div>
     </div>
@@ -296,15 +330,7 @@ function ProductBrowserOverlay({
 
   return (
     <div className="absolute inset-0 z-40 bg-black text-white">
-      <div className="sticky top-0 z-10 flex items-center justify-between bg-black/85 px-5 pb-3 pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-[0.24em] text-white/40">
-            Products
-          </p>
-          <h2 className="mt-1 max-w-[16rem] truncate text-lg font-semibold">
-            {outfit.name}
-          </h2>
-        </div>
+      <div className="sticky top-0 z-10 flex items-center justify-end bg-black/85 px-5 pb-3 pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur md:px-6">
         <button
           type="button"
           onClick={onClose}
@@ -327,7 +353,7 @@ function ProductBrowserOverlay({
         </button>
       </div>
 
-      <div className="h-[calc(100%-4.75rem)] overflow-y-auto px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-4 scrollbar-hide">
+      <div className="h-[calc(100%-4.75rem)] overflow-y-auto px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-4 scrollbar-hide md:px-6">
         {items.length > 0 ? (
           <ProductBrowserRows items={items} />
         ) : (
@@ -342,7 +368,7 @@ function ProductBrowserOverlay({
 
 function ProductBrowserRows({ items }: { items: OutfitItem[] }) {
   return (
-    <div className="space-y-7">
+    <div className="mx-auto w-full space-y-7 md:max-w-5xl md:space-y-6">
       {items.map((item) => {
         const products = getImageBackedProducts(item.search_results ?? []);
 
@@ -353,7 +379,7 @@ function ProductBrowserRows({ items }: { items: OutfitItem[] }) {
             </p>
 
             {products.length > 0 ? (
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-2 md:flex md:gap-3 md:overflow-x-auto md:pb-2 md:scrollbar-hide">
                 {products.map((product, index) => (
                   <ProductTile
                     key={`${product.link || product.title}-${index}`}
@@ -362,11 +388,11 @@ function ProductBrowserRows({ items }: { items: OutfitItem[] }) {
                 ))}
               </div>
             ) : (
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-2 md:flex md:gap-3 md:overflow-x-auto md:pb-2 md:scrollbar-hide">
                 {[0, 1, 2].map((index) => (
                   <div
                     key={`${item.id}-empty-${index}`}
-                    className="flex aspect-square items-center justify-center rounded-xl bg-white/10"
+                    className="flex aspect-square items-center justify-center rounded-xl bg-white/10 md:h-36 md:w-36 md:shrink-0"
                   >
                     <svg
                       className="h-5 w-5 animate-spin text-white/35"
@@ -412,7 +438,7 @@ function ProductTile({ product }: { product: SearchResult }) {
           window.open(product.link, "_blank", "noopener,noreferrer");
         }
       }}
-      className="group text-left"
+      className="group text-left md:w-36 md:shrink-0"
     >
       <div className="aspect-square overflow-hidden rounded-xl bg-white/10 shadow-2xl">
         <img
@@ -478,92 +504,101 @@ function RemixOverlay({
       )}
       <div className="absolute inset-0 bg-black/70" />
 
-      <div className="relative z-10 flex h-full flex-col px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))]">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-[0.24em] text-white/40">
-              Remix
-            </p>
-            <h2 className="mt-1 max-w-[16rem] truncate text-lg font-semibold">
-              {outfit.name}
-            </h2>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={submitting}
-            className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 disabled:opacity-40"
-            aria-label="Close remix"
-          >
-            <svg
-              className="h-5 w-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
-        </div>
+      <button
+        type="button"
+        onClick={onClose}
+        disabled={submitting}
+        className="absolute right-5 top-[max(1rem,env(safe-area-inset-top))] z-20 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 disabled:opacity-40"
+        aria-label="Close remix"
+      >
+        <svg
+          className="h-5 w-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          strokeWidth={2}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M6 18L18 6M6 6l12 12"
+          />
+        </svg>
+      </button>
 
-        <div className="flex flex-1 flex-col justify-center gap-5">
-          <div>
-            <h3 className="text-3xl font-semibold leading-tight">
-              What should change?
-            </h3>
-            <p className="mt-3 text-sm leading-6 text-white/55">
-              Tell us what to keep and what to adjust. We&apos;ll reuse matching
-              products, research changes, and regenerate the look.
-            </p>
-          </div>
+      <div className="relative z-10 flex h-full items-center justify-center px-5 py-[max(1.25rem,env(safe-area-inset-bottom))]">
+        <div className="flex w-full max-w-xl flex-col gap-5">
+          <h3 className="text-center text-3xl font-semibold leading-tight">
+            Tell us what to change
+          </h3>
 
           <textarea
             value={feedback}
             onChange={(event) => setFeedback(event.target.value)}
-            placeholder="I like it, but make the pants light jeans."
+            placeholder="Sneakers instead of shoes, make the pants jeans, less formal, etc."
             rows={5}
             disabled={submitting}
             className="w-full resize-none rounded-3xl border border-white/10 bg-white/10 px-4 py-4 text-base leading-6 text-white outline-none placeholder:text-white/35 focus:border-white/30 disabled:opacity-60"
           />
 
           {error && <p className="text-sm text-red-300">{error}</p>}
-        </div>
 
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={!feedback.trim() || submitting}
-          className="flex h-14 w-full items-center justify-center rounded-full bg-white px-5 text-sm font-semibold text-black transition hover:bg-white/90 disabled:bg-white/20 disabled:text-white/40"
-        >
-          {submitting ? "Remixing..." : "Remix outfit"}
-        </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={!feedback.trim() || submitting}
+            className="flex h-14 w-full items-center justify-center rounded-full bg-white px-5 text-sm font-semibold text-black transition hover:bg-white/90 disabled:bg-white/20 disabled:text-white/40"
+          >
+            {submitting ? "Remixing..." : "Remix outfit"}
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
 function BottomActionBar({
+  className = "",
+  contained = false,
   canOpenProducts,
   onProducts,
   canRemix,
   onRemix,
   onNextOutfit,
+  isSaved,
+  canSave,
+  onSave,
+  nextDisabled,
+  nextCountdown,
 }: {
+  className?: string;
+  contained?: boolean;
   canOpenProducts: boolean;
   onProducts: () => void;
   canRemix: boolean;
   onRemix: () => void;
   onNextOutfit?: () => void;
+  isSaved: boolean;
+  canSave: boolean;
+  onSave: () => void;
+  nextDisabled: boolean;
+  nextCountdown: boolean;
 }) {
   return (
-    <div className="absolute inset-x-4 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-10 rounded-full bg-black/45 px-4 py-3 text-white shadow-2xl backdrop-blur-md">
+    <div
+      className={`${
+        contained
+          ? "relative"
+          : "absolute inset-x-4 bottom-[max(0.75rem,env(safe-area-inset-bottom))]"
+      } z-10 rounded-full bg-black/45 px-4 py-3 text-white shadow-2xl backdrop-blur-md ${className}`}
+    >
       <div className="flex items-center justify-between">
-        <ActionButton label="Like">
+        <ActionButton
+          label={isSaved ? "Unsave look" : "Save look"}
+          disabled={!canSave}
+          active={isSaved}
+          onClick={onSave}
+        >
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -595,12 +630,13 @@ function BottomActionBar({
             d="M16.5 3.75L20.25 7.5m0 0l-3.75 3.75M20.25 7.5H8.75A5.75 5.75 0 003 13.25v.25M7.5 20.25L3.75 16.5m0 0l3.75-3.75M3.75 16.5h11.5A5.75 5.75 0 0021 10.75v-.25"
           />
         </ActionButton>
-        <ActionButton label="Next outfit" onClick={onNextOutfit}>
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M5 9l7 7 7-7"
-          />
+        <ActionButton
+          label="Next outfit"
+          disabled={nextDisabled}
+          countdown={nextCountdown}
+          onClick={onNextOutfit}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 9l7 7 7-7" />
         </ActionButton>
       </div>
     </div>
@@ -611,11 +647,15 @@ function ActionButton({
   children,
   label,
   disabled = false,
+  active = false,
+  countdown = false,
   onClick,
 }: {
   children: ReactNode;
   label: string;
   disabled?: boolean;
+  active?: boolean;
+  countdown?: boolean;
   onClick?: () => void;
 }) {
   return (
@@ -623,10 +663,39 @@ function ActionButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="relative flex h-14 w-14 items-center justify-center rounded-full text-white transition hover:bg-white/10 disabled:text-white/30"
+      className={`relative flex h-14 w-14 items-center justify-center rounded-full transition hover:bg-white/10 disabled:text-white/30 ${
+        active ? "bg-white text-black hover:bg-white/90" : "text-white"
+      }`}
       aria-label={label}
       title={label}
     >
+      {countdown && (
+        <svg
+          className="next-button-countdown pointer-events-none absolute inset-0 h-full w-full text-white"
+          viewBox="0 0 56 56"
+          aria-hidden="true"
+        >
+          <circle
+            className="next-button-countdown-track"
+            cx="28"
+            cy="28"
+            r="25"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          />
+          <circle
+            className="next-button-countdown-progress"
+            cx="28"
+            cy="28"
+            r="25"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="3"
+            strokeLinecap="round"
+          />
+        </svg>
+      )}
       <svg
         className="relative z-10 h-7 w-7"
         fill="none"
