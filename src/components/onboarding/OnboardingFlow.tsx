@@ -152,7 +152,7 @@ export default function OnboardingFlow({
   }
 
   return (
-    <main className="flex min-h-screen bg-black text-white">
+    <main className="flex min-h-[100dvh] bg-black text-white">
       <form
         onSubmit={handleSubmit}
         className="mx-auto flex w-full max-w-md flex-col px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(2rem,env(safe-area-inset-top))]"

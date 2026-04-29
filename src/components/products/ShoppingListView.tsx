@@ -12,7 +12,7 @@ export default function ShoppingListView() {
   const { savedProducts, toggleProductSaved } = useDataContext();
 
   return (
-    <div className="min-h-dvh w-full bg-black px-5 py-8 pb-[max(2rem,env(safe-area-inset-bottom))] text-white">
+    <div className="flex flex-1 flex-col overflow-y-auto bg-black px-5 py-8 text-white">
       <div className="mx-auto w-full max-w-6xl">
         <div className="mb-6">
           <h1 className="text-3xl font-semibold">Shopping list</h1>

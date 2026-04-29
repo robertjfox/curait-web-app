@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { DataProvider, useDataContext } from "@/contexts/DataContext";
 import Sidebar from "@/components/layout/Sidebar";
 import ThreadView from "@/components/thread/ThreadView";
@@ -17,42 +17,11 @@ export default function Home() {
   );
 }
 
-// On Android Chrome (and other browsers that honor the Fullscreen API on
-// non-video elements), enter fullscreen on the user's first touch so the
-// URL bar and toolbar are hidden entirely. iOS Safari ignores this call,
-// which is fine — the document-scroll architecture still shrinks its
-// chrome to a small pill on first scroll.
-function useFullscreenOnFirstTouch() {
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!window.matchMedia("(pointer: coarse)").matches) return;
-
-    const tryFullscreen = () => {
-      const el = document.documentElement as HTMLElement & {
-        requestFullscreen?: (options?: FullscreenOptions) => Promise<void>;
-      };
-      el.requestFullscreen?.({ navigationUI: "hide" }).catch(() => {});
-      document.removeEventListener("touchend", tryFullscreen);
-    };
-
-    document.addEventListener("touchend", tryFullscreen, {
-      once: true,
-      passive: true,
-    });
-
-    return () => {
-      document.removeEventListener("touchend", tryFullscreen);
-    };
-  }, []);
-}
-
 function MainLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { activeView, selectedUserId, selectedUser, refreshSelectedUser } =
     useDataContext();
   const onboardingComplete = isUserOnboarded(selectedUser);
-
-  useFullscreenOnFirstTouch();
 
   async function handleOnboardingComplete() {
     if (!selectedUserId) return;
@@ -61,7 +30,7 @@ function MainLayout() {
 
   if (!selectedUserId) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-black px-6 text-center text-sm text-white/50">
+      <div className="flex h-[100dvh] items-center justify-center bg-black px-6 text-center text-sm text-white/50">
         Setting up your profile...
       </div>
     );
@@ -69,7 +38,7 @@ function MainLayout() {
 
   if (!selectedUser) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-black px-6 text-center text-sm text-white/50">
+      <div className="flex h-[100dvh] items-center justify-center bg-black px-6 text-center text-sm text-white/50">
         Loading your profile...
       </div>
     );
@@ -85,12 +54,12 @@ function MainLayout() {
   }
 
   return (
-    <div className="flex min-h-dvh bg-black">
+    <div className="flex h-[100dvh] overflow-hidden bg-black">
       <Sidebar
         sidebarOpen={sidebarOpen}
         onCloseSidebar={() => setSidebarOpen(false)}
       />
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex flex-1 flex-col overflow-hidden">
         {activeView === "saved" ? (
           <SavedLooksView />
         ) : activeView === "shopping" ? (

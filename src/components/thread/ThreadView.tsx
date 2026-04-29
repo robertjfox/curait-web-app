@@ -201,10 +201,10 @@ export default function ThreadView({ onMenuPress }: ThreadViewProps) {
 
   if (!selectedThreadId) {
     return (
-      <div className="relative flex min-h-dvh flex-1 flex-col bg-black text-white">
+      <div className="relative flex flex-1 overflow-hidden bg-black text-white">
         <TopHud onMenuPress={onMenuPress} />
 
-        <div className="flex flex-1 flex-col items-center justify-center px-7 pb-32 pt-24 text-center">
+        <div className="flex flex-1 flex-col items-center justify-center px-7 text-center">
           <Image
             src="/curait-logo.png"
             alt="CurAIt"
@@ -233,7 +233,7 @@ export default function ThreadView({ onMenuPress }: ThreadViewProps) {
           )}
         </div>
 
-        <div className="fixed inset-x-0 bottom-0 z-30 md:left-72">
+        <div className="absolute inset-x-0 bottom-0 z-30">
           <MessageInput
             onSend={handleSendMessage}
             sending={sending || !selectedUserId}
@@ -246,7 +246,7 @@ export default function ThreadView({ onMenuPress }: ThreadViewProps) {
   }
 
   return (
-    <div className="relative flex flex-1 flex-col bg-black">
+    <div className="relative flex flex-1 overflow-hidden bg-black">
       <OutfitFeed
         outfits={visibleOutfits}
         pendingPrompt={generation?.prompt || latestPrompt}
@@ -261,7 +261,7 @@ export default function ThreadView({ onMenuPress }: ThreadViewProps) {
       />
 
       {visibleOutfits.length === 0 && !waitingForFreshOutfit && (
-        <div className="pointer-events-none fixed inset-0 z-20 flex items-center justify-center px-8 text-center text-white md:left-72">
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-8 text-center text-white">
           <div>
             <p className="mb-3 text-sm font-medium uppercase tracking-[0.28em] text-white/45">
               Ready when you are
@@ -286,7 +286,7 @@ function TopHud({
   onMenuPress: () => void;
 }) {
   return (
-    <div className="fixed left-0 top-0 z-30 px-4 pt-[max(1rem,env(safe-area-inset-top))] text-white md:hidden">
+    <div className="absolute left-0 top-0 z-30 px-4 pt-[max(1rem,env(safe-area-inset-top))] text-white md:hidden">
       <button
         onClick={onMenuPress}
         className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-black/35 backdrop-blur"

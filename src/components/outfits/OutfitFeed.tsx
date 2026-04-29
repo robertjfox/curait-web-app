@@ -37,25 +37,6 @@ export default function OutfitFeed({
   const [activeIndex, setActiveIndex] = useState(0);
   const [now, setNow] = useState(() => Date.now());
 
-  // Drive snap + chrome-collapse from the document, not an inner div.
-  // Mobile browsers only shrink their URL bar / toolbar when the
-  // window is the scrolled element, so OutfitFeed temporarily promotes
-  // the document to a snap container while it's mounted.
-  useEffect(() => {
-    const html = document.documentElement;
-    html.classList.add("snap-document");
-
-    // Nudge mobile Safari into "scrolled" state on first paint so it
-    // engages the small URL bar without requiring a user swipe.
-    if (window.scrollY === 0) {
-      window.scrollTo(0, 1);
-    }
-
-    return () => {
-      html.classList.remove("snap-document");
-    };
-  }, []);
-
   useEffect(() => {
     if (!selectedOutfitId || !containerRef.current) return;
     const index = outfits.findIndex((o) => o.id === selectedOutfitId);
@@ -121,64 +102,65 @@ export default function OutfitFeed({
 
   // Continuously map each slide's distance from the viewport center to a
   // CSS scale variable so the active slide grows as you flick it away and
-  // the incoming slide eases back to its resting size. Driven by JS rather
-  // than `animation-timeline: view()` so it works on every browser AND
-  // responds in real time to a finger/mouse drag, even mid-snap.
-  function updateSlideZoom() {
-    const container = containerRef.current;
-    if (!container) return;
-    const height = window.innerHeight;
-    if (height <= 0) return;
-    const containerTop = container.getBoundingClientRect().top + window.scrollY;
-    const viewportCenter = window.scrollY + height / 2;
+  // the incoming slide eases back to its resting size. Throttled via rAF
+  // so we don't trigger a style write per scroll event on iOS, which
+  // would cause paint flicker on top of an already heavy snap animation.
+  const rafRef = useRef<number | null>(null);
+  const lastIndexRef = useRef(0);
 
-    Array.from(container.children).forEach((node, i) => {
-      const slide = node as HTMLElement;
-      const slideCenter = containerTop + i * height + height / 2;
-      const offset = Math.abs(viewportCenter - slideCenter) / height;
-      const clamped = Math.min(offset, 1);
-      const scale = 1 + 0.15 * clamped;
-      slide.style.setProperty("--slide-zoom", scale.toFixed(4));
+  function scheduleScrollUpdate() {
+    if (rafRef.current !== null) return;
+    rafRef.current = window.requestAnimationFrame(() => {
+      rafRef.current = null;
+      const container = containerRef.current;
+      if (!container) return;
+      const height = container.clientHeight;
+      if (height <= 0) return;
+
+      const scrollTop = container.scrollTop;
+      const viewportCenter = scrollTop + height / 2;
+
+      const nextIndex = Math.round(scrollTop / height);
+      if (nextIndex !== lastIndexRef.current) {
+        lastIndexRef.current = nextIndex;
+        setActiveIndex(nextIndex);
+      }
+
+      const children = container.children;
+      const childCount = children.length;
+      // Only update the active slide and its immediate neighbours —
+      // off-screen slides never visually change, so writing their
+      // CSS vars on every frame is just paint work for nothing.
+      const start = Math.max(0, lastIndexRef.current - 1);
+      const end = Math.min(childCount - 1, lastIndexRef.current + 1);
+      for (let i = start; i <= end; i++) {
+        const slide = children[i] as HTMLElement | undefined;
+        if (!slide) continue;
+        const slideCenter = i * height + height / 2;
+        const offset = Math.abs(viewportCenter - slideCenter) / height;
+        const clamped = Math.min(offset, 1);
+        const scale = 1 + 0.15 * clamped;
+        slide.style.setProperty("--slide-zoom", scale.toFixed(4));
+      }
     });
   }
 
   useEffect(() => {
-    function onScroll() {
-      const container = containerRef.current;
-      if (!container) return;
-      const height = window.innerHeight;
-      if (height <= 0) return;
-      const containerTop =
-        container.getBoundingClientRect().top + window.scrollY;
-      const relative = Math.max(0, window.scrollY - containerTop);
-      setActiveIndex(Math.round(relative / height));
-      updateSlideZoom();
-    }
-
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
-    onScroll();
-
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
-    };
-  }, []);
-
-  useEffect(() => {
-    updateSlideZoom();
+    scheduleScrollUpdate();
   }, [outfits.length]);
 
-  // `snap-mandatory` only commits a snap once the user has dragged ~50%
-  // of a slide. Anything less and the browser bounces them back to the
-  // origin slide, which feels broken for light, intentional swipes.
-  // Track touch start/end manually and force the next/prev slide if the
-  // gesture clears either a distance or a velocity threshold.
-  const touchStartRef = useRef<{ scrollY: number; time: number } | null>(null);
+  // Native mandatory snap on iOS / Android handles large drags well —
+  // it commits the next slide once the user crosses ~50% of viewport.
+  // Where it falls short is a quick, low-distance flick: the browser
+  // sees a small displacement and bounces back to the origin slide,
+  // which feels broken. We only override that one case.
+  const touchStartRef = useRef<{ scrollTop: number; time: number } | null>(null);
 
   function handleTouchStart() {
+    const container = containerRef.current;
+    if (!container) return;
     touchStartRef.current = {
-      scrollY: window.scrollY,
+      scrollTop: container.scrollTop,
       time: Date.now(),
     };
   }
@@ -189,27 +171,23 @@ export default function OutfitFeed({
     touchStartRef.current = null;
     if (!container || !start) return;
 
-    const height = window.innerHeight;
+    const height = container.clientHeight;
     if (height <= 0) return;
 
-    const deltaY = window.scrollY - start.scrollY;
+    const deltaY = container.scrollTop - start.scrollTop;
     const elapsed = Math.max(1, Date.now() - start.time);
     const velocity = Math.abs(deltaY) / elapsed; // px / ms
 
-    const distanceThreshold = height * 0.06; // ≥ 6% of viewport
-    const velocityThreshold = 0.2; // ~ a relaxed flick
+    const flickVelocity = 0.35; // px/ms — fast deliberate flick
+    const isLargeDrag = Math.abs(deltaY) >= height * 0.5;
+    const isFlick = velocity >= flickVelocity && Math.abs(deltaY) > 8;
 
-    if (
-      Math.abs(deltaY) < distanceThreshold &&
-      velocity < velocityThreshold
-    ) {
-      return;
-    }
+    // Large drag → let native snap handle. Tiny accidental scroll →
+    // also let native snap handle (snaps back to origin).
+    if (isLargeDrag || !isFlick) return;
 
-    const containerTop = container.getBoundingClientRect().top + window.scrollY;
-    const startRelative = Math.max(0, start.scrollY - containerTop);
     const direction = deltaY > 0 ? 1 : -1;
-    const startIndex = Math.round(startRelative / height);
+    const startIndex = Math.round(start.scrollTop / height);
     const targetIndex = startIndex + direction;
     if (targetIndex < 0) return;
     if (targetIndex >= container.children.length) return;
@@ -221,18 +199,18 @@ export default function OutfitFeed({
   return (
     <div
       ref={containerRef}
+      onScroll={scheduleScrollUpdate}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onTouchCancel={handleTouchEnd}
-      className="w-full bg-black"
+      className="h-full w-full snap-y snap-mandatory overflow-y-auto bg-black scrollbar-hide"
     >
       {outfits.map((outfit, index) => (
         <section
           key={outfit.id}
-          className="h-[100dvh] w-full snap-start snap-always"
+          className="h-full w-full snap-start snap-always"
         >
           <OutfitCard
-            key={`${outfit.id}-${index === activeIndex ? "active" : "inactive"}`}
             outfit={outfit}
             prompt={pendingPrompt}
             isActive={index === activeIndex}
@@ -251,7 +229,7 @@ export default function OutfitFeed({
       ))}
 
       {showPendingCard && (
-        <section className="h-[100dvh] w-full snap-start snap-always">
+        <section className="h-full w-full snap-start snap-always">
           <OutfitCard loading prompt={pendingPrompt} />
         </section>
       )}

@@ -33,7 +33,7 @@ export default function SavedLooksView() {
     const nextOutfit = savedOutfits.outfits[currentIndex + 1];
 
     return (
-      <div className="relative h-[100dvh] w-full bg-black">
+      <div className="relative flex flex-1 overflow-hidden bg-black">
         <OutfitCard
           outfit={selectedOutfit}
           isActive
@@ -45,7 +45,7 @@ export default function SavedLooksView() {
         <button
           type="button"
           onClick={() => setSelectedOutfitId(null)}
-          className="fixed left-4 top-[max(1rem,env(safe-area-inset-top))] z-30 rounded-full bg-black/45 px-4 py-2 text-sm font-medium text-white backdrop-blur transition hover:bg-white/10"
+          className="absolute left-4 top-[max(1rem,env(safe-area-inset-top))] z-30 rounded-full bg-black/45 px-4 py-2 text-sm font-medium text-white backdrop-blur transition hover:bg-white/10"
         >
           Saved looks
         </button>
@@ -54,7 +54,7 @@ export default function SavedLooksView() {
   }
 
   return (
-    <div className="min-h-dvh w-full bg-black px-5 py-8 pb-[max(2rem,env(safe-area-inset-bottom))] text-white">
+    <div className="flex flex-1 flex-col overflow-y-auto bg-black px-5 py-8 text-white">
       <div className="mx-auto w-full max-w-6xl">
         <div className="mb-6">
           <h1 className="text-3xl font-semibold">Saved looks</h1>
