@@ -1,6 +1,7 @@
 "use client";
 
 import { useDataContext } from "@/contexts/DataContext";
+import { apiClient } from "@/lib/api";
 import Image from "next/image";
 
 interface SidebarProps {
@@ -13,6 +14,8 @@ export default function Sidebar({ sidebarOpen, onCloseSidebar }: SidebarProps) {
     activeView,
     setActiveView,
     threads,
+    selectedUserId,
+    refreshSelectedUser,
     selectedThreadId,
     setSelectedThreadId,
     deleteThread,
@@ -22,6 +25,14 @@ export default function Sidebar({ sidebarOpen, onCloseSidebar }: SidebarProps) {
     setActiveView("thread");
     setSelectedThreadId(null);
     onCloseSidebar();
+    if (selectedUserId) {
+      void apiClient
+        .generatePromptSuggestions(selectedUserId, true)
+        .then(() => refreshSelectedUser())
+        .catch((error) => {
+          console.error("Failed to refresh prompt suggestions:", error);
+        });
+    }
   }
 
   function handleSelectThread(id: string) {

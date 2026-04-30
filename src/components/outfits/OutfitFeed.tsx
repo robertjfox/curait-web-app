@@ -4,8 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import OutfitCard from "./OutfitCard";
 import type { Outfit } from "@/types/api";
 
-const PRODUCT_SEARCH_GRACE_PERIOD_MS = 45_000;
-
 interface OutfitFeedProps {
   outfits: Outfit[];
   selectedOutfitId?: string;
@@ -18,8 +16,6 @@ interface OutfitFeedProps {
   onRemixOutfit?: (outfit: Outfit, feedback: string) => Promise<void>;
   onToggleSaved?: (outfit: Outfit, saved: boolean) => Promise<void>;
   scrollToOutfitId?: string | null;
-  revealOutfitId?: string | null;
-  onRevealComplete?: () => void;
 }
 
 export default function OutfitFeed({
@@ -34,12 +30,9 @@ export default function OutfitFeed({
   onRemixOutfit,
   onToggleSaved,
   scrollToOutfitId,
-  revealOutfitId,
-  onRevealComplete,
 }: OutfitFeedProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     if (!selectedOutfitId || !containerRef.current) return;
@@ -51,41 +44,25 @@ export default function OutfitFeed({
     child?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [selectedOutfitId, outfits]);
 
+  // Only scroll once per requested id. Without this, every poll
+  // refresh re-runs the effect (outfits is a new array reference)
+  // and yanks the user back to the cache-revealed slide.
+  const lastScrolledIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (!scrollToOutfitId || !containerRef.current) return;
+    if (lastScrolledIdRef.current === scrollToOutfitId) return;
     const index = outfits.findIndex((o) => o.id === scrollToOutfitId);
     if (index < 0) return;
     const child = containerRef.current.children[index] as
       | HTMLElement
       | undefined;
-    child?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (!child) return;
+    child.scrollIntoView({ behavior: "smooth", block: "start" });
+    lastScrolledIdRef.current = scrollToOutfitId;
   }, [scrollToOutfitId, outfits]);
 
   const showPendingCard = isGenerating;
   const latestOutfitId = outfits[outfits.length - 1]?.id;
-
-  function isWaitingForProductSearch(outfit: Outfit) {
-    if (!latestOutfitId || outfit.id !== latestOutfitId) return false;
-
-    const createdAt = Date.parse(outfit.created_at);
-    if (!Number.isFinite(createdAt)) return false;
-    if (now - createdAt > PRODUCT_SEARCH_GRACE_PERIOD_MS) return false;
-
-    const items = outfit.outfit_items ?? [];
-    if (items.length === 0) return true;
-
-    return items.some((item) => (item.search_results?.length ?? 0) === 0);
-  }
-
-  const latestOutfitWaitingForProducts = latestOutfitId
-    ? isWaitingForProductSearch(outfits[outfits.length - 1])
-    : false;
-
-  useEffect(() => {
-    if (!latestOutfitWaitingForProducts) return;
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, [latestOutfitWaitingForProducts]);
 
   useEffect(() => {
     if (!showPendingCard || !autoScrollToPending || !containerRef.current)
@@ -203,13 +180,22 @@ export default function OutfitFeed({
     const flickVelocity = 0.35; // px/ms — fast deliberate flick
     const isLargeDrag = Math.abs(deltaY) >= height * 0.5;
     const isFlick = velocity >= flickVelocity && Math.abs(deltaY) > 8;
+    const direction = deltaY > 0 ? 1 : -1;
+    const startIndex = Math.round(start.scrollTop / height);
+
+    // Any meaningful upward gesture from the last slide should trigger
+    // a fresh outfit, so the user always has a real next slide to land
+    // on instead of the snap-back feeling broken.
+    const onLastSlide = startIndex >= container.children.length - 1;
+    if (direction === 1 && onLastSlide && (isFlick || isLargeDrag)) {
+      onGenerateNext?.();
+      return;
+    }
 
     // Large drag → let native snap handle. Tiny accidental scroll →
     // also let native snap handle (snaps back to origin).
     if (isLargeDrag || !isFlick) return;
 
-    const direction = deltaY > 0 ? 1 : -1;
-    const startIndex = Math.round(start.scrollTop / height);
     const targetIndex = startIndex + direction;
     if (targetIndex < 0) return;
     if (targetIndex >= container.children.length) return;
@@ -225,7 +211,7 @@ export default function OutfitFeed({
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onTouchCancel={handleTouchEnd}
-      className="h-full w-full snap-y snap-mandatory overflow-y-auto bg-black scrollbar-hide"
+      className="h-full w-full snap-y snap-mandatory overflow-y-auto overscroll-y-contain bg-black scrollbar-hide"
     >
       {outfits.map((outfit, index) => (
         <section
@@ -237,10 +223,7 @@ export default function OutfitFeed({
             prompt={pendingPrompt}
             isActive={index === activeIndex}
             isLatest={outfit.id === latestOutfitId}
-            shouldSimulateReveal={outfit.id === revealOutfitId}
-            onRevealComplete={onRevealComplete}
-            nextDisabled={isWaitingForProductSearch(outfit)}
-            actionsDisabled={actionsDisabled || isWaitingForProductSearch(outfit)}
+            actionsDisabled={actionsDisabled}
             onMenuPress={onMenuPress}
             onRemixOutfit={onRemixOutfit}
             onToggleSaved={onToggleSaved}

@@ -169,9 +169,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const user = await apiClient.getUserProfile(selectedUserId);
-    setSelectedUser(user);
-  }, [selectedUserId]);
+    try {
+      const user = await apiClient.getUserProfile(selectedUserId);
+      if (!user) {
+        setSelectedUser(null);
+        setSelectedThreadId(null);
+        setStoredUserId(null);
+        return;
+      }
+      setSelectedUser(user);
+    } catch (error) {
+      console.error("Failed to refresh selected user:", error);
+    }
+  }, [selectedUserId, setStoredUserId]);
 
   useEffect(() => {
     if (!selectedUserId) {
@@ -180,14 +190,59 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
 
     let cancelled = false;
-    apiClient.getUserProfile(selectedUserId).then((user) => {
-      if (!cancelled) setSelectedUser(user);
-    });
+    apiClient
+      .getUserProfile(selectedUserId)
+      .then((user) => {
+        if (cancelled) return;
+        if (!user) {
+          setSelectedUser(null);
+          setSelectedThreadId(null);
+          setStoredUserId(null);
+          return;
+        }
+        setSelectedUser(user);
+      })
+      .catch((error) => {
+        if (!cancelled) console.error("Failed to load selected user:", error);
+      });
 
     return () => {
       cancelled = true;
     };
-  }, [selectedUserId]);
+  }, [selectedUserId, setStoredUserId]);
+
+  useEffect(() => {
+    if (
+      !selectedUserId ||
+      selectedUser?.context?.style_context_synthesis_status !== "pending"
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+    const interval = window.setInterval(() => {
+      apiClient
+        .getUserProfile(selectedUserId)
+        .then((user) => {
+          if (cancelled) return;
+          if (!user) {
+            setSelectedUser(null);
+            setSelectedThreadId(null);
+            setStoredUserId(null);
+            return;
+          }
+          setSelectedUser(user);
+        })
+        .catch((error) => {
+          if (!cancelled) console.error("Failed to refresh profile synthesis:", error);
+        });
+    }, 4000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [selectedUser, selectedUserId, setStoredUserId]);
 
   const threads = useThreads(selectedUserId);
   const thread = useThread(selectedThreadId);

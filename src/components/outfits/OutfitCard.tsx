@@ -15,8 +15,6 @@ interface OutfitCardProps {
   prompt?: string;
   isActive?: boolean;
   isLatest?: boolean;
-  shouldSimulateReveal?: boolean;
-  onRevealComplete?: () => void;
   nextDisabled?: boolean;
   actionsDisabled?: boolean;
   onNextOutfit?: () => void;
@@ -48,8 +46,6 @@ export default function OutfitCard({
   prompt,
   isActive = false,
   isLatest = false,
-  shouldSimulateReveal = false,
-  onRevealComplete,
   nextDisabled = false,
   actionsDisabled = false,
   onNextOutfit,
@@ -63,64 +59,18 @@ export default function OutfitCard({
     outfitId: string;
     saved: boolean;
   } | null>(null);
-  const [revealState, setRevealState] = useState<{
-    outfitId: string | null;
-    phase: "loading" | "collecting" | "image";
-  }>({ outfitId: null, phase: "loading" });
   const imageUrl = getImageUrl(outfit);
   const items = useMemo(
     () => outfit?.outfit_items ?? [],
     [outfit?.outfit_items],
   );
-  const simulateReveal = Boolean(
-    outfit?.id &&
-    isActive &&
-    shouldSimulateReveal &&
-    imageUrl &&
-    !loading,
-  );
-  const revealPhase =
-    simulateReveal && revealState.outfitId === outfit?.id
-      ? revealState.phase
-      : "loading";
-  const displayImageUrl =
-    imageUrl && !loading && (!simulateReveal || revealPhase !== "loading")
-      ? imageUrl
-      : null;
-  const avatarRevealClass =
-    simulateReveal && revealPhase === "collecting"
-      ? "avatar-image-reveal"
-      : "";
-  const productPreviewImages = useMemo(
-    () =>
-      getImageBackedProducts(items.flatMap((item) => item.search_results ?? []))
-        .map((product) => getProductImageUrl(product))
-        .filter((url): url is string => Boolean(url))
-        .slice(0, 3),
-    [items],
-  );
+  const displayImageUrl = imageUrl && !loading ? imageUrl : null;
+  const showProductRows = items.length > 0;
   const title = outfit?.name || prompt || "Your outfit";
   const isSaved =
     optimisticSaved && optimisticSaved.outfitId === outfit?.id
       ? optimisticSaved.saved
       : Boolean(outfit?.saved);
-
-  useEffect(() => {
-    if (!simulateReveal || !outfit?.id) return;
-
-    const collectTimer = window.setTimeout(() => {
-      setRevealState({ outfitId: outfit.id, phase: "collecting" });
-    }, 2200);
-    const imageTimer = window.setTimeout(() => {
-      setRevealState({ outfitId: outfit.id, phase: "image" });
-      onRevealComplete?.();
-    }, 3400);
-
-    return () => {
-      window.clearTimeout(collectTimer);
-      window.clearTimeout(imageTimer);
-    };
-  }, [onRevealComplete, outfit?.id, simulateReveal]);
 
   // Start the 10s "next" cooldown only on the latest slide, the moment
   // its flatlay image first paints. Older slides have already been seen,
@@ -129,39 +79,40 @@ export default function OutfitCard({
   const [cooldownActive, setCooldownActive] = useState(false);
   useEffect(() => {
     if (!imageOnScreen) return;
-    setCooldownActive(true);
-    const timer = window.setTimeout(
-      () => setCooldownActive(false),
-      NEXT_COOLDOWN_MS,
-    );
-    return () => window.clearTimeout(timer);
+    let endTimer: number | null = null;
+    const startTimer = window.setTimeout(() => {
+      setCooldownActive(true);
+      endTimer = window.setTimeout(
+        () => setCooldownActive(false),
+        NEXT_COOLDOWN_MS,
+      );
+    }, 0);
+    return () => {
+      window.clearTimeout(startTimer);
+      if (endTimer !== null) window.clearTimeout(endTimer);
+    };
   }, [imageOnScreen]);
 
   return (
     <article className="relative flex h-full w-full flex-col overflow-hidden bg-[radial-gradient(circle_at_top,#2f2f2f,transparent_38%),linear-gradient(180deg,#101010,#050505)] text-white md:block">
       {displayImageUrl ? (
-        <>
-          <div className="slide-image-zoom relative flex-1 md:absolute md:inset-0">
+        <div className="slide-image-zoom relative flex-1 md:absolute md:inset-0">
+          <img
+            src={displayImageUrl}
+            alt={title}
+            className="absolute inset-0 h-full w-full object-contain object-bottom md:hidden"
+          />
+          <div className="absolute inset-x-0 top-0 bottom-[6.25rem] hidden items-center justify-center px-4 pt-10 md:flex">
             <img
               src={displayImageUrl}
               alt={title}
-              className={`absolute inset-0 h-full w-full object-contain object-bottom md:hidden ${avatarRevealClass}`}
+              className="max-h-full w-auto max-w-full rounded-2xl object-contain object-center"
             />
-            <div className="absolute inset-x-0 top-0 bottom-[6.25rem] hidden items-center justify-center px-4 pt-10 md:flex">
-              <img
-                src={displayImageUrl}
-                alt={title}
-                className={`max-h-full w-auto max-w-full rounded-2xl object-contain object-center ${avatarRevealClass}`}
-              />
-            </div>
           </div>
-          {productPreviewImages.length > 0 && revealPhase === "collecting" && (
-            <ProductCollectOverlay items={items} />
-          )}
-        </>
+        </div>
       ) : (
         <div className="relative flex-1 md:absolute md:inset-0">
-          {items.length > 0 ? (
+          {showProductRows ? (
             <div className="flex h-full items-start px-5 pb-24 pt-5">
               <ProductPreviewRows items={items} />
             </div>
@@ -195,7 +146,7 @@ export default function OutfitCard({
             setOptimisticSaved({ outfitId: outfit.id, saved: isSaved });
           }
         }}
-        nextDisabled={loading || nextDisabled || simulateReveal || cooldownActive}
+        nextDisabled={loading || nextDisabled || cooldownActive}
         nextCountdown={cooldownActive}
         onMenuPress={onMenuPress}
       />
@@ -293,17 +244,19 @@ function ProductPreviewRows({
           item.search_results ?? [],
         ).slice(0, 3);
         const hasResults = (item.search_results?.length ?? 0) > 0;
-        const isRanked = (item.search_results ?? []).some(
-          (product) => typeof product.ranking === "number",
-        );
-        const state = !hasResults
-          ? "Searching"
-          : !isRanked
-            ? "Ranking"
-            : "Ready";
+        const hasImageProducts = products.length > 0;
+        const state = !hasResults || !hasImageProducts ? "Searching" : "Ready";
 
         return (
-          <div key={item.id} className="space-y-2">
+          <div
+            key={item.id}
+            className={`space-y-2 ${collecting ? "" : "product-preview-row-enter"}`}
+            style={
+              collecting
+                ? undefined
+                : ({ animationDelay: `${rowIndex * 140}ms` } as CSSProperties)
+            }
+          >
             <div
               className={`flex items-center justify-between gap-3 ${
                 collecting ? "product-keyword-collect-out" : ""
@@ -379,16 +332,6 @@ function ProductPreviewRows({
           </div>
         );
       })}
-    </div>
-  );
-}
-
-function ProductCollectOverlay({ items }: { items: OutfitItem[] }) {
-  return (
-    <div className="product-collect-overlay pointer-events-none fixed inset-0 z-20 bg-black/10 md:absolute">
-      <div className="flex h-full items-start px-5 pb-24 pt-5 md:pt-24">
-        <ProductPreviewRows items={items} collecting />
-      </div>
     </div>
   );
 }

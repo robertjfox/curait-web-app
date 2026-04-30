@@ -12,6 +12,7 @@ export interface User {
   gender?: string;
   location?: string;
   context?: Record<string, unknown>;
+  onboarding_raw_context?: Record<string, unknown>;
   prompt_suggestions?: { prompts: string[] } | null;
   created_at: string;
   updated_at: string;

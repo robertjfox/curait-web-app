@@ -28,7 +28,7 @@ function hasProducts(item: OutfitItem): boolean {
 }
 
 function hasRankedProducts(item: OutfitItem): boolean {
-  return (item.search_results ?? []).some((r) => typeof r.ranking === "number");
+  return hasProducts(item);
 }
 
 export default function GenerationProgress({
@@ -103,7 +103,7 @@ function OutfitProgressColumn({ outfit }: { outfit: Outfit }) {
 
         <MiniStep
           status={ranked ? "completed" : searched ? "active" : "pending"}
-          label={ranked ? "Products ranked" : "Ranking products"}
+          label={ranked ? "Products ready" : "Preparing products"}
         />
 
         <div className="relative aspect-[3/4] overflow-hidden rounded-xl bg-gray-100">

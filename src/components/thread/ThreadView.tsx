@@ -44,7 +44,6 @@ export default function ThreadView({ onMenuPress }: ThreadViewProps) {
   const [generation, setGeneration] = useState<GenerationCycle | null>(null);
   const [pendingComments, setPendingComments] = useState<PendingComment[]>([]);
   const [scrollToOutfitId, setScrollToOutfitId] = useState<string | null>(null);
-  const [revealOutfitId, setRevealOutfitId] = useState<string | null>(null);
 
   // Latest outfit list, kept in a ref so the send handler can snapshot the
   // baseline without re-binding every poll.
@@ -134,7 +133,6 @@ export default function ThreadView({ onMenuPress }: ThreadViewProps) {
       .then(async (result) => {
         if (result.revealed && result.outfit_id) {
           setScrollToOutfitId(result.outfit_id);
-          setRevealOutfitId(result.outfit_id);
           await outfits.refresh();
         } else {
           await handleSendMessage(latestPrompt);
@@ -165,7 +163,6 @@ export default function ThreadView({ onMenuPress }: ThreadViewProps) {
       await outfits.refresh();
       if (result.outfit_id) {
         setScrollToOutfitId(result.outfit_id);
-        setRevealOutfitId(result.outfit_id);
       }
       void thread.refresh();
     } catch (error) {
@@ -192,9 +189,10 @@ export default function ThreadView({ onMenuPress }: ThreadViewProps) {
 
   const waitingForFreshOutfit = Boolean(generation) && freshOutfits.length === 0;
   const firstName = selectedUser?.first_name?.trim();
-  const promptSuggestions =
+  const promptSuggestions = (
     selectedUser?.prompt_suggestions?.prompts?.filter((prompt) => prompt.trim()) ??
-    [];
+    []
+  ).slice(0, 3);
   const visibleOutfits = useMemo(
     () => outfits.outfits.filter((outfit) => !outfit.is_cached),
     [outfits.outfits]
@@ -215,7 +213,15 @@ export default function ThreadView({ onMenuPress }: ThreadViewProps) {
             priority
           />
           <h1 className="max-w-sm text-4xl font-semibold leading-tight">
-            {firstName ? `Welcome back, ${firstName}.` : "Say the vibe. Swipe the looks."}
+            {firstName ? (
+              `Welcome back, ${firstName}.`
+            ) : (
+              <>
+                Say the vibe.
+                <br />
+                Swipe the looks.
+              </>
+            )}
           </h1>
           {promptSuggestions.length > 0 && (
             <div className="mt-8 flex max-w-2xl flex-wrap justify-center gap-2">
@@ -267,8 +273,6 @@ export default function ThreadView({ onMenuPress }: ThreadViewProps) {
         onRemixOutfit={handleRemixOutfit}
         onToggleSaved={toggleOutfitSaved}
         scrollToOutfitId={scrollToOutfitId}
-        revealOutfitId={revealOutfitId}
-        onRevealComplete={() => setRevealOutfitId(null)}
       />
 
       {visibleOutfits.length === 0 && !waitingForFreshOutfit && (

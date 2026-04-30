@@ -4,6 +4,7 @@ import { useState } from "react";
 import { DataProvider, useDataContext } from "@/contexts/DataContext";
 import Sidebar from "@/components/layout/Sidebar";
 import ThreadView from "@/components/thread/ThreadView";
+import LandingPage from "@/components/landing/LandingPage";
 import OnboardingFlow from "@/components/onboarding/OnboardingFlow";
 import SavedLooksView from "@/components/outfits/SavedLooksView";
 import ShoppingListView from "@/components/products/ShoppingListView";
@@ -21,12 +22,17 @@ export default function Home() {
 
 function MainLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [landingSeen, setLandingSeen] = useState(false);
+  const [onboardingFinished, setOnboardingFinished] = useState(false);
   const { activeView, selectedUserId, selectedUser, refreshSelectedUser } =
     useDataContext();
   const onboardingComplete = isUserOnboarded(selectedUser);
+  const profilePending =
+    selectedUser?.context?.style_context_synthesis_status === "pending";
 
   async function handleOnboardingComplete() {
     if (!selectedUserId) return;
+    setOnboardingFinished(true);
     await refreshSelectedUser();
   }
 
@@ -38,7 +44,11 @@ function MainLayout() {
     return <LoadingScreen />;
   }
 
-  if (!onboardingComplete) {
+  if (!onboardingComplete || (landingSeen && !onboardingFinished)) {
+    if (!landingSeen && !onboardingComplete) {
+      return <LandingPage onStart={() => setLandingSeen(true)} />;
+    }
+
     return (
       <OnboardingFlow
         userId={selectedUserId}
@@ -64,6 +74,18 @@ function MainLayout() {
           <ThreadView onMenuPress={() => setSidebarOpen(true)} />
         )}
       </div>
+      {profilePending && <ProfilePendingNotice />}
+    </div>
+  );
+}
+
+function ProfilePendingNotice() {
+  return (
+    <div className="pointer-events-none absolute inset-x-0 top-[max(1rem,env(safe-area-inset-top))] z-50 flex justify-center px-4">
+      <div className="flex items-center gap-2 rounded-full border border-white/10 bg-black/55 px-4 py-2 text-xs font-medium text-white/75 shadow-2xl backdrop-blur">
+        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
+        Building your personal profile
+      </div>
     </div>
   );
 }
@@ -71,15 +93,17 @@ function MainLayout() {
 function isUserOnboarded(user: User | null): boolean {
   if (!user) return false;
 
-  const firstName = user.first_name?.trim();
-  if (!firstName || firstName.toLowerCase() === "guest") return false;
   if (!user.location?.trim() || !user.gender?.trim()) return false;
 
-  const context = user.context ?? {};
+  const rawContext = user.onboarding_raw_context ?? {};
+  if (typeof rawContext.age_range !== "string" || !rawContext.age_range.trim()) {
+    return false;
+  }
+
   const hasStyleContext =
-    Array.isArray(context.selected_brands) && context.selected_brands.length > 0;
+    Array.isArray(rawContext.selected_brands) && rawContext.selected_brands.length > 0;
   const hasBodyContext = Boolean(
-    context.body_shape && (context.height_cm || context.height_feet) && context.weight_lb
+    rawContext.body_shape && (rawContext.height_cm || rawContext.height_feet)
   );
 
   return hasStyleContext && hasBodyContext;

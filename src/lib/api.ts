@@ -65,6 +65,7 @@ export interface UpdateUserProfileRequest {
   location?: string;
   gender?: string;
   context?: Record<string, unknown>;
+  onboarding_raw_context?: Record<string, unknown>;
 }
 
 export interface UpdateUserProfileResponse {
@@ -81,12 +82,19 @@ export interface GenerateAvatarResponse {
   image_url: string;
 }
 
+export interface CurrentAvatarResponse {
+  image_url?: string | null;
+}
+
 export interface GenerateStyleBrandChipsRequest {
   gender?: string;
+  age_range?: string;
   location?: string;
   job?: string;
   body_shape?: string;
   fit_preference?: string;
+  height_feet?: number;
+  height_inches?: number;
   lifestyle_occasions?: string[];
   daily_dress_code?: string;
   color_comfort?: string[];
@@ -97,6 +105,12 @@ export interface GenerateStyleBrandChipsRequest {
 export interface GenerateStyleBrandChipsResponse {
   success: boolean;
   brands: string[];
+}
+
+export interface PromptSuggestionsResponse {
+  success: boolean;
+  user_id: string;
+  prompts: string[];
 }
 
 interface ListThreadsResponse {
@@ -159,8 +173,11 @@ export const apiClient = {
         `/api/users/${encodeURIComponent(userId)}`
       );
       return data.user ?? null;
-    } catch {
-      return null;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        return null;
+      }
+      throw error;
     }
   },
 
@@ -178,6 +195,13 @@ export const apiClient = {
     return data;
   },
 
+  async getCurrentAvatar(userId: string): Promise<string | null> {
+    const { data } = await api.get<CurrentAvatarResponse>(
+      `/api/avatars/${encodeURIComponent(userId)}`
+    );
+    return data.image_url ?? null;
+  },
+
   async generateStyleBrandChips(
     request: GenerateStyleBrandChipsRequest
   ): Promise<string[]> {
@@ -186,6 +210,18 @@ export const apiClient = {
       request
     );
     return data.brands ?? [];
+  },
+
+  async generatePromptSuggestions(
+    userId: string,
+    ignoreThrottle = true
+  ): Promise<string[]> {
+    const { data } = await api.post<PromptSuggestionsResponse>(
+      `/api/prompt-suggestions/${encodeURIComponent(userId)}/generate`,
+      null,
+      { params: { ignore_throttle: ignoreThrottle } }
+    );
+    return data.prompts ?? [];
   },
 
   async createThread(userId: string): Promise<CreateThreadResponse> {
