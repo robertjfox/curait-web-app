@@ -28,7 +28,7 @@ const LOCAL_USER_TOKEN_KEY = "curaitUserToken";
 const TOKEN_CHANGE_EVENT = "curait-user-token-change";
 let guestProvisionPromise: Promise<string | null> | null = null;
 
-type AppView = "thread" | "saved" | "shopping";
+type AppView = "thread" | "saved" | "shopping" | "settings";
 
 function readStoredUserId(): string | null {
   if (typeof window === "undefined") return null;

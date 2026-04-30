@@ -105,11 +105,13 @@ export function useThreads(userId: string | null) {
     try {
       if (isInitial) setLoading(true);
       const data = await apiClient.listUserThreads(userId);
-      setThreads(data);
+      setThreads((prev) =>
+        !isInitial && data.length === 0 && prev.length > 0 ? prev : data
+      );
       hasFetchedRef.current = true;
     } catch (error) {
       console.error("Failed to load threads:", error);
-      setThreads([]);
+      if (isInitial) setThreads([]);
     } finally {
       if (isInitial) setLoading(false);
     }
@@ -146,7 +148,7 @@ export function useThread(threadId: string | null) {
       hasFetchedRef.current = true;
     } catch (err) {
       console.error("Failed to fetch thread:", err);
-      setThread(null);
+      if (isInitial) setThread(null);
     } finally {
       if (isInitial) setLoading(false);
     }
@@ -179,11 +181,16 @@ export function useThreadOutfits(threadId: string | null) {
     try {
       if (isInitial) setLoading(true);
       const data = await apiClient.listThreadOutfits(threadId);
-      setOutfits(sortOutfitsItems(data));
+      const nextOutfits = sortOutfitsItems(data);
+      setOutfits((prev) =>
+        !isInitial && nextOutfits.length === 0 && prev.length > 0
+          ? prev
+          : nextOutfits
+      );
       hasFetchedRef.current = true;
     } catch (error) {
       console.error("Failed to load thread outfits:", error);
-      setOutfits([]);
+      if (isInitial) setOutfits([]);
     } finally {
       if (isInitial) setLoading(false);
     }

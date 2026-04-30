@@ -1,7 +1,14 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type Dispatch,
+  type FormEvent,
+  type SetStateAction,
+} from "react";
 import { apiClient } from "@/lib/api";
 
 interface OnboardingFlowProps {
@@ -11,6 +18,65 @@ interface OnboardingFlowProps {
 
 type Gender = "" | "male" | "female";
 type BodyShape = "" | "slim" | "average" | "broad";
+
+const TOTAL_STEPS = 6;
+
+const OCCASION_OPTIONS = [
+  "Work / office",
+  "Remote work",
+  "Dates",
+  "Dinner / drinks",
+  "Weekend errands",
+  "Travel",
+  "Events",
+  "Nightlife",
+  "Outdoors",
+  "Gym / athleisure",
+];
+
+const DAILY_DRESS_CODE_OPTIONS = [
+  "Very casual",
+  "Smart casual",
+  "Business casual",
+  "Formal",
+  "Depends",
+];
+
+const FIT_PREFERENCE_OPTIONS = ["Slim / tailored", "Regular", "Relaxed"];
+
+const COLOR_COMFORT_OPTIONS = [
+  "Neutrals",
+  "Earth tones",
+  "Black / grey",
+  "Navy / blue",
+  "Pastels",
+  "Bright colors",
+  "Monochrome",
+  "Open",
+];
+
+const STYLE_AVOID_OPTIONS = [
+  "Skinny jeans",
+  "Baggy pants",
+  "Loud logos",
+  "Bright colors",
+  "All black",
+  "Shorts",
+  "Sandals",
+  "Hats",
+  "Oversized fits",
+  "Tight fits",
+  "Formal shoes",
+  "Distressed denim",
+];
+
+const BUDGET_OPTIONS = [
+  "Budget-friendly",
+  "Mid-range",
+  "Premium",
+  "Mix high / low",
+  "No preference",
+];
 
 export default function OnboardingFlow({
   userId,
@@ -28,6 +94,12 @@ export default function OnboardingFlow({
   const [heightInches, setHeightInches] = useState("");
   const [weightPounds, setWeightPounds] = useState("");
   const [bodyShape, setBodyShape] = useState<BodyShape>("");
+  const [fitPreference, setFitPreference] = useState("");
+  const [occasions, setOccasions] = useState<string[]>([]);
+  const [dailyDressCode, setDailyDressCode] = useState("");
+  const [colorComfort, setColorComfort] = useState<string[]>([]);
+  const [styleAvoids, setStyleAvoids] = useState<string[]>([]);
+  const [budgetPreference, setBudgetPreference] = useState("");
   const [selfie, setSelfie] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,7 +122,7 @@ export default function OnboardingFlow({
   }, [weightPounds]);
 
   useEffect(() => {
-    if (step !== 2 || brandChips.length > 0) return;
+    if (step !== 4 || brandChips.length > 0) return;
     if (!gender || !location.trim()) return;
 
     let cancelled = false;
@@ -60,6 +132,13 @@ export default function OnboardingFlow({
         gender,
         location: location.trim(),
         job: job.trim() || undefined,
+        body_shape: bodyShape || undefined,
+        fit_preference: fitPreference || undefined,
+        lifestyle_occasions: occasions,
+        daily_dress_code: dailyDressCode || undefined,
+        color_comfort: colorComfort,
+        style_avoids: styleAvoids,
+        budget_preference: budgetPreference || undefined,
       })
       .then((brands) => {
         if (!cancelled) setBrandChips(brands);
@@ -92,15 +171,24 @@ export default function OnboardingFlow({
     };
   }, [brandChips.length, gender, job, location, step]);
 
+  function toggleChip(value: string, setValues: Dispatch<SetStateAction<string[]>>) {
+    setValues((current) =>
+      current.includes(value)
+        ? current.filter((item) => item !== value)
+        : [...current, value]
+    );
+  }
+
   function canContinue() {
     if (step === 0) return Boolean(firstName.trim() && location.trim() && gender);
-    if (step === 1) return Boolean(heightFeet && weightPounds && bodyShape);
-    if (step === 2) return selectedBrands.length > 0;
+    if (step === 1) return Boolean(heightFeet && weightPounds && bodyShape && fitPreference);
+    if (step === 2) return occasions.length > 0 && Boolean(dailyDressCode);
+    if (step === 4) return selectedBrands.length > 0;
     return true;
   }
 
   function handleNext() {
-    if (step < 3) {
+    if (step < TOTAL_STEPS - 1) {
       setStep((current) => current + 1);
     }
   }
@@ -109,7 +197,7 @@ export default function OnboardingFlow({
     event.preventDefault();
     if (!userId || submitting) return;
 
-    if (step < 3) {
+    if (step < TOTAL_STEPS - 1) {
       handleNext();
       return;
     }
@@ -125,10 +213,32 @@ export default function OnboardingFlow({
         context: {
           job: job.trim() || undefined,
           selected_brands: selectedBrands,
+          lifestyle_occasions: occasions,
+          daily_dress_code: dailyDressCode || undefined,
+          fit_preference: fitPreference || undefined,
+          color_comfort: colorComfort,
+          style_avoids: styleAvoids,
+          budget_preference: budgetPreference || undefined,
           style_notes:
-            selectedBrands.length > 0
-              ? `User selected these brand/style references: ${selectedBrands.join(", ")}`
-              : undefined,
+            [
+              selectedBrands.length > 0
+                ? `Brand/style references: ${selectedBrands.join(", ")}`
+                : null,
+              occasions.length > 0
+                ? `Lifestyle occasions: ${occasions.join(", ")}`
+                : null,
+              dailyDressCode ? `Daily dress code: ${dailyDressCode}` : null,
+              fitPreference ? `Preferred fit: ${fitPreference}` : null,
+              colorComfort.length > 0
+                ? `Comfortable colors: ${colorComfort.join(", ")}`
+                : null,
+              styleAvoids.length > 0
+                ? `Avoid: ${styleAvoids.join(", ")}`
+                : null,
+              budgetPreference ? `Shopping budget: ${budgetPreference}` : null,
+            ]
+              .filter(Boolean)
+              .join(". "),
           height_feet: heightFeet ? Number(heightFeet) : undefined,
           height_inches: heightInches ? Number(heightInches) : undefined,
           height_cm: heightCm,
@@ -168,13 +278,15 @@ export default function OnboardingFlow({
               priority
             />
             <p className="mb-3 text-xs font-medium uppercase tracking-[0.26em] text-white/45">
-              Step {step + 1} of 4
+              Step {step + 1} of {TOTAL_STEPS}
             </p>
             <h1 className="text-4xl font-semibold leading-tight">
               {step === 0 && "Tell us who you are."}
               {step === 1 && "Fit the avatar to you."}
-              {step === 2 && "Pick brands you like."}
-              {step === 3 && "Create your base avatar."}
+              {step === 2 && "What do you dress for?"}
+              {step === 3 && "Set your style guardrails."}
+              {step === 4 && "Pick brands you like."}
+              {step === 5 && "Create your base avatar."}
             </h1>
           </div>
 
@@ -261,10 +373,74 @@ export default function OnboardingFlow({
                   ))}
                 </div>
               </div>
+              <div>
+                <p className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-white/45">
+                  Preferred fit
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  {FIT_PREFERENCE_OPTIONS.map((option) => (
+                    <ChipButton
+                      key={option}
+                      selected={fitPreference === option}
+                      onClick={() => setFitPreference(option)}
+                    >
+                      {option}
+                    </ChipButton>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 
           {step === 2 && (
+            <div className="space-y-5">
+              <p className="text-sm leading-6 text-white/55">
+                Tap the situations you actually need outfits for. This helps us
+                avoid generic looks.
+              </p>
+              <ChipGroup
+                label="Occasions"
+                options={OCCASION_OPTIONS}
+                selected={occasions}
+                onToggle={(value) => toggleChip(value, setOccasions)}
+              />
+              <SingleChipGroup
+                label="Most days I dress"
+                options={DAILY_DRESS_CODE_OPTIONS}
+                selected={dailyDressCode}
+                onSelect={setDailyDressCode}
+              />
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="space-y-5">
+              <p className="text-sm leading-6 text-white/55">
+                A few quick boundaries help us make better calls without you
+                writing a style essay.
+              </p>
+              <ChipGroup
+                label="Colors you like wearing"
+                options={COLOR_COMFORT_OPTIONS}
+                selected={colorComfort}
+                onToggle={(value) => toggleChip(value, setColorComfort)}
+              />
+              <ChipGroup
+                label="Never put me in"
+                options={STYLE_AVOID_OPTIONS}
+                selected={styleAvoids}
+                onToggle={(value) => toggleChip(value, setStyleAvoids)}
+              />
+              <SingleChipGroup
+                label="Shopping budget"
+                options={BUDGET_OPTIONS}
+                selected={budgetPreference}
+                onSelect={setBudgetPreference}
+              />
+            </div>
+          )}
+
+          {step === 4 && (
             <div className="space-y-4">
               <p className="text-sm leading-6 text-white/55">
                 Based on your location, gender, and job, pick at least one brand
@@ -323,7 +499,7 @@ export default function OnboardingFlow({
             </div>
           )}
 
-          {step === 3 && (
+          {step === 5 && (
             <div className="space-y-4">
               <p className="text-sm leading-6 text-white/55">
                 Upload a clear face selfie. We’ll generate a simple full-body
@@ -385,7 +561,7 @@ export default function OnboardingFlow({
             disabled={!userId || submitting || !canContinue()}
             className="flex h-14 flex-1 items-center justify-center rounded-full bg-white px-5 text-sm font-semibold text-black transition hover:bg-white/90 disabled:bg-white/20 disabled:text-white/40"
           >
-            {step < 3
+            {step < TOTAL_STEPS - 1
               ? "Next"
               : submitting
                 ? selfie
@@ -456,5 +632,91 @@ function SelectField({
         ))}
       </select>
     </label>
+  );
+}
+
+function ChipGroup({
+  label,
+  options,
+  selected,
+  onToggle,
+}: {
+  label: string;
+  options: string[];
+  selected: string[];
+  onToggle: (value: string) => void;
+}) {
+  return (
+    <div>
+      <p className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-white/45">
+        {label}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {options.map((option) => (
+          <ChipButton
+            key={option}
+            selected={selected.includes(option)}
+            onClick={() => onToggle(option)}
+          >
+            {option}
+          </ChipButton>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SingleChipGroup({
+  label,
+  options,
+  selected,
+  onSelect,
+}: {
+  label: string;
+  options: string[];
+  selected: string;
+  onSelect: (value: string) => void;
+}) {
+  return (
+    <div>
+      <p className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-white/45">
+        {label}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {options.map((option) => (
+          <ChipButton
+            key={option}
+            selected={selected === option}
+            onClick={() => onSelect(option)}
+          >
+            {option}
+          </ChipButton>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ChipButton({
+  children,
+  selected,
+  onClick,
+}: {
+  children: string;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
+        selected
+          ? "border-white bg-white text-black"
+          : "border-white/10 bg-white/10 text-white"
+      }`}
+    >
+      {children}
+    </button>
   );
 }

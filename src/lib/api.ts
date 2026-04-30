@@ -85,6 +85,13 @@ export interface GenerateStyleBrandChipsRequest {
   gender?: string;
   location?: string;
   job?: string;
+  body_shape?: string;
+  fit_preference?: string;
+  lifestyle_occasions?: string[];
+  daily_dress_code?: string;
+  color_comfort?: string[];
+  style_avoids?: string[];
+  budget_preference?: string;
 }
 
 export interface GenerateStyleBrandChipsResponse {

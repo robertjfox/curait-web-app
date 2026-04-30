@@ -7,6 +7,7 @@ import ThreadView from "@/components/thread/ThreadView";
 import OnboardingFlow from "@/components/onboarding/OnboardingFlow";
 import SavedLooksView from "@/components/outfits/SavedLooksView";
 import ShoppingListView from "@/components/products/ShoppingListView";
+import SettingsView from "@/components/settings/SettingsView";
 import LoadingScreen from "@/components/ui/LoadingScreen";
 import type { User } from "@/types/api";
 
@@ -57,6 +58,8 @@ function MainLayout() {
           <SavedLooksView onMenuPress={() => setSidebarOpen(true)} />
         ) : activeView === "shopping" ? (
           <ShoppingListView onMenuPress={() => setSidebarOpen(true)} />
+        ) : activeView === "settings" ? (
+          <SettingsView onMenuPress={() => setSidebarOpen(true)} />
         ) : (
           <ThreadView onMenuPress={() => setSidebarOpen(true)} />
         )}

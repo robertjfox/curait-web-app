@@ -40,6 +40,11 @@ export default function Sidebar({ sidebarOpen, onCloseSidebar }: SidebarProps) {
     onCloseSidebar();
   }
 
+  function handleSettings() {
+    setActiveView("settings");
+    onCloseSidebar();
+  }
+
   function handleDeleteThread(e: React.MouseEvent, id: string) {
     e.stopPropagation();
     if (window.confirm("Delete this thread? This cannot be undone.")) {
@@ -139,7 +144,7 @@ export default function Sidebar({ sidebarOpen, onCloseSidebar }: SidebarProps) {
           </button>
         </nav>
 
-        <div className="flex-1 overflow-y-auto border-t border-white/10 px-3 py-3">
+        <div className="min-h-0 flex-1 overflow-y-auto border-t border-white/10 px-3 py-3">
           <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-white/40">
             Threads
           </p>
@@ -180,6 +185,36 @@ export default function Sidebar({ sidebarOpen, onCloseSidebar }: SidebarProps) {
           )}
         </div>
 
+        <div className="shrink-0 border-t border-white/10 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <button
+            onClick={handleSettings}
+            className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              activeView === "settings"
+                ? "bg-white text-black"
+                : "text-white/80 hover:bg-white/10 hover:text-white"
+            }`}
+          >
+            <svg
+              className="h-4 w-4 shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M10.325 4.317a1.724 1.724 0 013.35 0l.12.693a1.724 1.724 0 002.573 1.066l.604-.35a1.724 1.724 0 012.3 2.3l-.35.604a1.724 1.724 0 001.066 2.573l.693.12a1.724 1.724 0 010 3.35l-.693.12a1.724 1.724 0 00-1.066 2.573l.35.604a1.724 1.724 0 01-2.3 2.3l-.604-.35a1.724 1.724 0 00-2.573 1.066l-.12.693a1.724 1.724 0 01-3.35 0l-.12-.693a1.724 1.724 0 00-2.573-1.066l-.604.35a1.724 1.724 0 01-2.3-2.3l.35-.604a1.724 1.724 0 00-1.066-2.573l-.693-.12a1.724 1.724 0 010-3.35l.693-.12A1.724 1.724 0 005.078 8.63l-.35-.604a1.724 1.724 0 012.3-2.3l.604.35a1.724 1.724 0 002.573-1.066l.12-.693z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+              />
+            </svg>
+            Settings
+          </button>
+        </div>
       </aside>
     </>
   );
