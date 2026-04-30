@@ -145,7 +145,7 @@ export default function OutfitCard({
             <img
               src={displayImageUrl}
               alt={title}
-              className={`absolute inset-0 h-full w-full object-cover object-top md:hidden ${avatarRevealClass}`}
+              className={`absolute inset-0 h-full w-full object-contain object-bottom md:hidden ${avatarRevealClass}`}
             />
             <div className="absolute inset-x-0 top-0 bottom-[6.25rem] hidden items-center justify-center px-4 pt-10 md:flex">
               <img
@@ -404,30 +404,28 @@ function ProductBrowserOverlay({
 
   return (
     <div className="absolute inset-0 z-40 bg-black text-white">
-      <div className="sticky top-0 z-10 flex items-center justify-end bg-black/85 px-5 pb-3 pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur md:px-6">
-        <button
-          type="button"
-          onClick={onClose}
-          className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20"
-          aria-label="Close products"
+      <button
+        type="button"
+        onClick={onClose}
+        className="absolute right-5 top-[max(1rem,env(safe-area-inset-top))] z-20 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur transition hover:bg-white/20 md:right-6"
+        aria-label="Close products"
+      >
+        <svg
+          className="h-5 w-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          strokeWidth={2}
         >
-          <svg
-            className="h-5 w-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            strokeWidth={2}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
-        </button>
-      </div>
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M6 18L18 6M6 6l12 12"
+          />
+        </svg>
+      </button>
 
-      <div className="h-[calc(100%-4.75rem)] overflow-y-auto px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-4 scrollbar-hide md:px-6">
+      <div className="h-full overflow-y-auto px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[calc(max(1rem,env(safe-area-inset-top))+3.75rem)] scrollbar-hide md:px-6">
         {items.length > 0 ? (
           <ProductBrowserRows outfitId={outfit.id} items={items} />
         ) : (
