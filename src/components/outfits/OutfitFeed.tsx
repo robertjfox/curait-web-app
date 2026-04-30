@@ -11,6 +11,7 @@ interface OutfitFeedProps {
   selectedOutfitId?: string;
   pendingPrompt?: string;
   isGenerating?: boolean;
+  actionsDisabled?: boolean;
   autoScrollToPending?: boolean;
   onGenerateNext?: () => void;
   onMenuPress?: () => void;
@@ -26,6 +27,7 @@ export default function OutfitFeed({
   selectedOutfitId,
   pendingPrompt,
   isGenerating = false,
+  actionsDisabled = false,
   autoScrollToPending = true,
   onGenerateNext,
   onMenuPress,
@@ -238,6 +240,7 @@ export default function OutfitFeed({
             shouldSimulateReveal={outfit.id === revealOutfitId}
             onRevealComplete={onRevealComplete}
             nextDisabled={isWaitingForProductSearch(outfit)}
+            actionsDisabled={actionsDisabled || isWaitingForProductSearch(outfit)}
             onMenuPress={onMenuPress}
             onRemixOutfit={onRemixOutfit}
             onToggleSaved={onToggleSaved}
@@ -251,6 +254,7 @@ export default function OutfitFeed({
           <OutfitCard
             loading
             prompt={pendingPrompt}
+            actionsDisabled={actionsDisabled}
             onMenuPress={onMenuPress}
           />
         </section>

@@ -6,6 +6,7 @@ import { useDataContext } from "@/contexts/DataContext";
 import { apiClient } from "@/lib/api";
 import MessageInput from "@/components/thread/MessageInput";
 import OutfitFeed from "@/components/outfits/OutfitFeed";
+import LoadingScreen from "@/components/ui/LoadingScreen";
 import type { Outfit, ThreadComment } from "@/types/api";
 
 interface ThreadViewProps {
@@ -245,12 +246,21 @@ export default function ThreadView({ onMenuPress }: ThreadViewProps) {
     );
   }
 
+  if ((thread.loading || outfits.loading) && visibleOutfits.length === 0) {
+    return (
+      <div className="relative flex flex-1 overflow-hidden bg-black">
+        <LoadingScreen />
+      </div>
+    );
+  }
+
   return (
     <div className="relative flex flex-1 overflow-hidden bg-black">
       <OutfitFeed
         outfits={visibleOutfits}
         pendingPrompt={generation?.prompt || latestPrompt}
         isGenerating={waitingForFreshOutfit}
+        actionsDisabled={sending || thread.loading || outfits.loading || waitingForFreshOutfit}
         autoScrollToPending={generation?.source !== "remix"}
         onGenerateNext={handleGenerateNextOutfit}
         onMenuPress={onMenuPress}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   getImageBackedProducts,
   getProductImageUrl,
@@ -18,6 +18,7 @@ interface OutfitCardProps {
   shouldSimulateReveal?: boolean;
   onRevealComplete?: () => void;
   nextDisabled?: boolean;
+  actionsDisabled?: boolean;
   onNextOutfit?: () => void;
   onMenuPress?: () => void;
   onRemixOutfit?: (outfit: Outfit, feedback: string) => Promise<void>;
@@ -50,6 +51,7 @@ export default function OutfitCard({
   shouldSimulateReveal = false,
   onRevealComplete,
   nextDisabled = false,
+  actionsDisabled = false,
   onNextOutfit,
   onMenuPress,
   onRemixOutfit,
@@ -143,7 +145,7 @@ export default function OutfitCard({
             <img
               src={displayImageUrl}
               alt={title}
-              className={`absolute inset-0 h-full w-full rounded-2xl object-cover object-top md:hidden ${avatarRevealClass}`}
+              className={`absolute inset-0 h-full w-full object-cover object-top md:hidden ${avatarRevealClass}`}
             />
             <div className="absolute inset-x-0 top-0 bottom-[6.25rem] hidden items-center justify-center px-4 pt-10 md:flex">
               <img
@@ -160,7 +162,7 @@ export default function OutfitCard({
       ) : (
         <div className="relative flex-1 md:absolute md:inset-0">
           {items.length > 0 ? (
-            <div className="flex h-full items-center px-5 pb-24 pt-20">
+            <div className="flex h-full items-start px-5 pb-24 pt-5">
               <ProductPreviewRows items={items} />
             </div>
           ) : (
@@ -182,6 +184,7 @@ export default function OutfitCard({
         onNextOutfit={onNextOutfit}
         isSaved={isSaved}
         canSave={Boolean(outfit && onToggleSaved)}
+        actionsDisabled={loading || actionsDisabled}
         onSave={async () => {
           if (!outfit || !onToggleSaved) return;
           const nextSaved = !isSaved;
@@ -254,8 +257,37 @@ function ProductPreviewRows({
   items: OutfitItem[];
   collecting?: boolean;
 }) {
+  const overlayRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    if (!collecting || !overlayRef.current) return;
+
+    const viewport = window.visualViewport;
+    const viewportLeft = viewport?.offsetLeft ?? 0;
+    const viewportTop = viewport?.offsetTop ?? 0;
+    const viewportWidth = viewport?.width ?? window.innerWidth;
+    const viewportHeight = viewport?.height ?? window.innerHeight;
+    const targetX = viewportLeft + viewportWidth / 2;
+    const targetY = viewportTop + viewportHeight - 36;
+
+    overlayRef.current
+      .querySelectorAll<HTMLElement>("[data-collect-tile]")
+      .forEach((tile) => {
+        const tileRect = tile.getBoundingClientRect();
+        const tileCenterX = tileRect.left + tileRect.width / 2;
+        const tileCenterY = tileRect.top + tileRect.height / 2;
+        tile.style.setProperty("--collect-x", `${targetX - tileCenterX}px`);
+        tile.style.setProperty("--collect-y", `${targetY - tileCenterY}px`);
+      });
+  }, [collecting, items]);
+
   return (
-    <div className="mx-auto w-full space-y-5 overflow-hidden md:max-w-[27rem] md:space-y-4">
+    <div
+      ref={overlayRef}
+      className={`mx-auto w-full space-y-5 md:max-w-[27rem] md:space-y-4 ${
+        collecting ? "overflow-visible" : "overflow-hidden"
+      }`}
+    >
       {items.map((item, rowIndex) => {
         const products = getImageBackedProducts(
           item.search_results ?? [],
@@ -295,14 +327,13 @@ function ProductPreviewRows({
                   return (
                     <div
                       key={`${product?.link || item.id}-${index}`}
+                      data-collect-tile={collecting ? "" : undefined}
                       className={`aspect-square overflow-hidden rounded-xl bg-white/10 shadow-2xl md:h-32 md:w-32 md:shrink-0 ${
                         collecting ? "product-collect-to-button" : ""
                       }`}
                       style={
                         collecting
                           ? ({
-                              "--collect-x": `${(1 - index) * 118}px`,
-                              "--collect-y": `calc(42vh - ${rowIndex * 112}px)`,
                               animationDelay: `${rowIndex * 60 + index * 45}ms`,
                             } as CSSProperties)
                           : undefined
@@ -354,8 +385,8 @@ function ProductPreviewRows({
 
 function ProductCollectOverlay({ items }: { items: OutfitItem[] }) {
   return (
-    <div className="product-collect-overlay pointer-events-none absolute inset-0 z-20 bg-black/10">
-      <div className="flex h-full items-center px-5 pb-24 pt-20 md:items-start md:pt-24">
+    <div className="product-collect-overlay pointer-events-none fixed inset-0 z-20 bg-black/10 md:absolute">
+      <div className="flex h-full items-start px-5 pb-24 pt-5 md:pt-24">
         <ProductPreviewRows items={items} collecting />
       </div>
     </div>
@@ -679,6 +710,7 @@ function BottomActionBar({
   isSaved,
   canSave,
   onSave,
+  actionsDisabled,
   nextDisabled,
   nextCountdown,
   onMenuPress,
@@ -693,6 +725,7 @@ function BottomActionBar({
   isSaved: boolean;
   canSave: boolean;
   onSave: () => void;
+  actionsDisabled: boolean;
   nextDisabled: boolean;
   nextCountdown: boolean;
   onMenuPress?: () => void;
@@ -721,7 +754,7 @@ function BottomActionBar({
         )}
         <ActionButton
           label={isSaved ? "Unsave look" : "Save look"}
-          disabled={!canSave}
+          disabled={actionsDisabled || !canSave}
           active={isSaved}
           onClick={onSave}
         >
@@ -733,7 +766,7 @@ function BottomActionBar({
         </ActionButton>
         <ActionButton
           label="Products"
-          disabled={!canOpenProducts}
+          disabled={actionsDisabled || !canOpenProducts}
           onClick={onProducts}
         >
           <path
@@ -742,7 +775,11 @@ function BottomActionBar({
             d="M6 7h12l-1.2 12.2A2 2 0 0114.8 21H9.2a2 2 0 01-2-1.8L6 7zM9 7V5.5a3 3 0 016 0V7"
           />
         </ActionButton>
-        <ActionButton label="Remix" disabled={!canRemix} onClick={onRemix}>
+        <ActionButton
+          label="Remix"
+          disabled={actionsDisabled || !canRemix}
+          onClick={onRemix}
+        >
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -751,7 +788,7 @@ function BottomActionBar({
         </ActionButton>
         <ActionButton
           label="Next outfit"
-          disabled={nextDisabled || !onNextOutfit}
+          disabled={actionsDisabled || nextDisabled || !onNextOutfit}
           countdown={nextCountdown}
           onClick={onNextOutfit}
         >

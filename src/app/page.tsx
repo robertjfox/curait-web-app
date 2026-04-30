@@ -7,6 +7,7 @@ import ThreadView from "@/components/thread/ThreadView";
 import OnboardingFlow from "@/components/onboarding/OnboardingFlow";
 import SavedLooksView from "@/components/outfits/SavedLooksView";
 import ShoppingListView from "@/components/products/ShoppingListView";
+import LoadingScreen from "@/components/ui/LoadingScreen";
 import type { User } from "@/types/api";
 
 export default function Home() {
@@ -29,19 +30,11 @@ function MainLayout() {
   }
 
   if (!selectedUserId) {
-    return (
-      <div className="flex h-[100dvh] items-center justify-center bg-black px-6 text-center text-sm text-white/50">
-        Setting up your profile...
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   if (!selectedUser) {
-    return (
-      <div className="flex h-[100dvh] items-center justify-center bg-black px-6 text-center text-sm text-white/50">
-        Loading your profile...
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   if (!onboardingComplete) {

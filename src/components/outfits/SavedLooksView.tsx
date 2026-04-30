@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useDataContext } from "@/contexts/DataContext";
 import OutfitCard from "./OutfitCard";
+import LoadingScreen from "@/components/ui/LoadingScreen";
 import type { Outfit } from "@/types/api";
 
 function getImageUrl(outfit: Outfit): string | null {
@@ -29,6 +30,10 @@ export default function SavedLooksView({
       setSelectedOutfitId(null);
     }
   }, [selectedOutfit, selectedOutfitId]);
+
+  if (savedOutfits.loading && !selectedOutfit) {
+    return <LoadingScreen />;
+  }
 
   if (selectedOutfit) {
     const currentIndex = savedOutfits.outfits.findIndex(
@@ -70,11 +75,7 @@ export default function SavedLooksView({
           )}
         </div>
 
-        {savedOutfits.loading ? (
-          <div className="flex min-h-72 items-center justify-center text-sm text-white/45">
-            Loading saved looks...
-          </div>
-        ) : savedOutfits.outfits.length === 0 ? (
+        {savedOutfits.outfits.length === 0 ? (
           <div className="flex min-h-72 items-center justify-center rounded-3xl border border-white/10 bg-white/[0.03] px-8 text-center text-sm text-white/50">
             Tap the thumbs-up on an outfit to save it here.
           </div>

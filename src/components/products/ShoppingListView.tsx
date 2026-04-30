@@ -1,6 +1,7 @@
 "use client";
 
 import { useDataContext } from "@/contexts/DataContext";
+import LoadingScreen from "@/components/ui/LoadingScreen";
 import type { SavedProduct } from "@/types/api";
 
 function priceForCard(price?: string | null): string | null {
@@ -15,6 +16,10 @@ export default function ShoppingListView({
 }) {
   const { savedProducts, toggleProductSaved } = useDataContext();
 
+  if (savedProducts.loading) {
+    return <LoadingScreen />;
+  }
+
   return (
     <div className="flex flex-1 flex-col overflow-y-auto bg-black px-5 py-8 text-white">
       <div className="mx-auto w-full max-w-6xl">
@@ -25,11 +30,7 @@ export default function ShoppingListView({
           )}
         </div>
 
-        {savedProducts.loading ? (
-          <div className="flex min-h-72 items-center justify-center text-sm text-white/45">
-            Loading shopping list...
-          </div>
-        ) : savedProducts.products.length === 0 ? (
+        {savedProducts.products.length === 0 ? (
           <div className="flex min-h-72 items-center justify-center rounded-3xl border border-white/10 bg-white/[0.03] px-8 text-center text-sm text-white/50">
             Tap the heart on any product to save it here.
           </div>
